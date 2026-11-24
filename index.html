@@ -633,7 +633,7 @@ function buildShow(g,s){
 
 const BUILDERS = {city:buildCity, farm:buildFarm, suburb:buildSuburb, show:buildShow};
 const chunks = [], zoneMarks = [];
-let theme = 'city', themeLeft = 0, farZ = SCN_NEAR;
+let theme = 'city', themeLeft = 0, farZ = SCN_NEAR, playerTheme = 'city';
 const themeLen = () => rand(380, 600);
 function spawnChunk(zFar){
   const g = new THREE.Group(); g.position.z = zFar + CHUNK/2;
@@ -648,7 +648,7 @@ function spawnChunk(zFar){
 }
 function resetScenery(){
   chunks.forEach(c=>scene.remove(c)); chunks.length = 0; zoneMarks.length = 0;
-  theme = 'city'; themeLeft = 1e9; farZ = SCN_NEAR;
+  theme = 'city'; playerTheme = 'city'; themeLeft = 1e9; farZ = SCN_NEAR;
   while(farZ > SCN_FAR){ spawnChunk(farZ - CHUNK); farZ -= CHUNK; }
   themeLeft = themeLen();
 }
@@ -658,7 +658,7 @@ function updateScenery(d){
   while(farZ > SCN_FAR){ spawnChunk(farZ - CHUNK); farZ -= CHUNK; }
   for(let i=zoneMarks.length-1;i>=0;i--){
     const m = zoneMarks[i]; m.z += d;
-    if(m.z > -2){ zoneMarks.splice(i,1); if(state==='playing') pop(THEMES[m.theme], 'power', '#ffc21a'); }
+    if(m.z > -2){ zoneMarks.splice(i,1); playerTheme = m.theme; if(state==='playing') pop(THEMES[m.theme], 'power', '#ffc21a'); }
   }
 }
 resetScenery();
@@ -774,58 +774,94 @@ function burst(x,y,z,color,n,spread,up,life=0.6){
   }
 }
 
-// ---------- audio ----------
-let actx=null, master=null, motorOsc=null, motorOsc2=null, motorGain=null, muted=false;
+// ---------- audio (CC0 samples: see audio/CREDITS.md) ----------
+const SOUND_FILES = {
+  engine:'audio/engine.wav',
+  coin:'audio/sfx/coin.mp3', 'ramp-jump':'audio/sfx/ramp-jump.mp3', hop:'audio/sfx/hop.mp3', 'super-jump':'audio/sfx/super-jump.mp3',
+  land:'audio/sfx/land.mp3', crash:'audio/sfx/crash.mp3', smash:'audio/sfx/smash.mp3', unlock:'audio/sfx/unlock.mp3',
+  'power-end':'audio/sfx/power-end.mp3', 'power-jump':'audio/sfx/power-jump.mp3', 'power-magnet':'audio/sfx/power-magnet.mp3',
+  'power-shield':'audio/sfx/power-shield.mp3', 'shield-hit':'audio/sfx/shield-hit.mp3', 'power-nitro':'audio/sfx/power-nitro.mp3',
+  select:'audio/sfx/select.mp3', confirm:'audio/sfx/confirm.mp3',
+  'music-city':'audio/music/city.mp3', 'music-farm':'audio/music/farm.mp3', 'music-suburb':'audio/music/suburb.mp3', 'music-show':'audio/music/show.mp3',
+};
+// start downloading right away; decoding waits for the first click (browsers need a gesture to start audio)
+const soundData = {};
+for(const k in SOUND_FILES){ soundData[k] = fetch(SOUND_FILES[k]).then(r=>r.ok ? r.arrayBuffer() : null).catch(()=>null); }
+const buffers = {};
+let actx=null, master=null, sfxBus=null, musicBus=null, engineGain=null, engineFilter=null, engineSrc=null, muted=false;
+let musicNow = null, musicWanted = 'city', nitroSrc = null;
 try{ muted = localStorage.getItem('rc-rampage-muted')==='1'; }catch(e){}
+function decode(ab){ return new Promise((res)=>{ try{ const p = actx.decodeAudioData(ab, res, ()=>res(null)); if(p && p.then) p.then(res, ()=>res(null)); }catch(e){ res(null); } }); }
 function initAudio(){
-  if(actx) { if(actx.state==='suspended') actx.resume(); return; }
+  if(actx){ if(actx.state==='suspended' && state!=='paused') actx.resume(); return; }
   try{
     actx = new (window.AudioContext||window.webkitAudioContext)();
-    master = actx.createGain(); master.gain.value = muted?0:0.5; master.connect(actx.destination);
-    motorGain = actx.createGain(); motorGain.gain.value = 0;
-    const lp = actx.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=1400; lp.Q.value=2;
-    motorOsc = actx.createOscillator(); motorOsc.type='sawtooth'; motorOsc.frequency.value=180;
-    motorOsc2 = actx.createOscillator(); motorOsc2.type='square'; motorOsc2.frequency.value=182;
-    const g2 = actx.createGain(); g2.gain.value=0.35;
-    motorOsc.connect(lp); motorOsc2.connect(g2); g2.connect(lp); lp.connect(motorGain); motorGain.connect(master);
-    motorOsc.start(); motorOsc2.start();
-  }catch(e){ actx=null; }
+    master = actx.createGain(); master.gain.value = muted?0:1; master.connect(actx.destination);
+    sfxBus = actx.createGain(); sfxBus.gain.value = 0.7; sfxBus.connect(master);
+    musicBus = actx.createGain(); musicBus.gain.value = 0.32; musicBus.connect(master);
+    engineFilter = actx.createBiquadFilter(); engineFilter.type='lowpass'; engineFilter.frequency.value=1500; engineFilter.Q.value=0.5;
+    engineGain = actx.createGain(); engineGain.gain.value = 0; engineFilter.connect(engineGain); engineGain.connect(master);
+  }catch(e){ actx=null; return; }
+  for(const k in soundData){
+    soundData[k].then(ab=>ab && decode(ab.slice(0))).then(b=>{
+      if(!b) return; buffers[k]=b;
+      if(k==='engine') startEngine();
+      if(k==='music-'+musicWanted) setMusic(musicWanted, true);
+    });
+  }
 }
-function setMotor(freq, vol){
-  if(!actx) return; const t=actx.currentTime;
-  motorOsc.frequency.setTargetAtTime(freq,t,0.08); motorOsc2.frequency.setTargetAtTime(freq*1.012,t,0.08);
-  motorGain.gain.setTargetAtTime(vol,t,0.12);
+function play(name, vol=1, rate=1){
+  if(!actx || muted || !buffers[name]) return null;
+  const s = actx.createBufferSource(); s.buffer = buffers[name]; s.playbackRate.value = rate;
+  const g = actx.createGain(); g.gain.value = vol; s.connect(g); g.connect(sfxBus); s.start();
+  return s;
 }
-function tone(freq,dur,type='sine',vol=0.2,slide=0,delay=0){
-  if(!actx||muted) return; const t=actx.currentTime+delay;
-  const o=actx.createOscillator(), g=actx.createGain(); o.type=type; o.frequency.setValueAtTime(freq,t);
-  if(slide) o.frequency.exponentialRampToValueAtTime(slide,t+dur);
-  g.gain.setValueAtTime(vol,t); g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
-  o.connect(g); g.connect(master); o.start(t); o.stop(t+dur+0.02);
+function startEngine(){
+  if(engineSrc || !buffers.engine) return;
+  engineSrc = actx.createBufferSource(); engineSrc.buffer = buffers.engine; engineSrc.loop = true;
+  engineSrc.connect(engineFilter); engineSrc.start();
 }
-function hiss(dur,vol=0.3,freq=900){
-  if(!actx||muted) return; const t=actx.currentTime;
-  const n=actx.sampleRate*dur, b=actx.createBuffer(1,n,actx.sampleRate), d=b.getChannelData(0);
-  for(let i=0;i<n;i++) d[i]=(Math.random()*2-1)*(1-i/n);
-  const s=actx.createBufferSource(); s.buffer=b; const f=actx.createBiquadFilter(); f.type='lowpass'; f.frequency.value=freq;
-  const g=actx.createGain(); g.gain.value=vol; s.connect(f); f.connect(g); g.connect(master); s.start(t);
+// engine: pitch follows speed (and revs when the wheels leave the ground), kept quiet and soft
+function setEngine(level, vol){
+  if(!engineSrc) return; const t = actx.currentTime;
+  engineSrc.playbackRate.setTargetAtTime(0.7 + level*0.75, t, 0.15);
+  engineFilter.frequency.setTargetAtTime(900 + level*1400, t, 0.2);
+  engineGain.gain.setTargetAtTime(vol, t, 0.25);
 }
+// background music: one track per scenario, crossfaded
+function setMusic(theme, force=false){
+  musicWanted = theme;
+  if(!actx || (!force && musicNow && musicNow.theme===theme)) return;
+  const buf = buffers['music-'+theme]; if(!buf) return;
+  const t = actx.currentTime;
+  if(musicNow){ const old = musicNow; old.gain.gain.cancelScheduledValues(t); old.gain.gain.setValueAtTime(old.gain.gain.value, t); old.gain.gain.linearRampToValueAtTime(0, t+1.5); old.src.stop(t+1.6); }
+  const src = actx.createBufferSource(); src.buffer = buf; src.loop = true;
+  const g = actx.createGain(); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(1, t+1.5);
+  src.connect(g); g.connect(musicBus); src.start(t);
+  musicNow = {theme, src, gain:g};
+}
+function duckMusic(level){ if(musicBus) musicBus.gain.setTargetAtTime(0.32*level, actx.currentTime, 0.3); }
 const sfx = {
-  coin(){ tone(988,0.07,'square',0.08); tone(1319,0.16,'square',0.08,0,0.06); },
-  jump(){ tone(220,0.35,'triangle',0.18,660); hiss(0.25,0.12,2500); },
-  hop(){ tone(300,0.18,'triangle',0.14,520); },
-  land(){ hiss(0.15,0.25,500); tone(90,0.12,'sine',0.25,50); },
-  crash(){ hiss(0.7,0.6,1200); tone(140,0.5,'sawtooth',0.25,40); },
-  lane(){ tone(520,0.05,'sine',0.04,620); },
-  power(){ [523,659,784,1047].forEach((f,i)=>tone(f,0.12,'square',0.07,0,i*0.06)); },
-  unlock(){ [392,523,659,784,1047].forEach((f,i)=>tone(f,0.18,'triangle',0.12,0,i*0.08)); },
-  smash(){ hiss(0.35,0.45,1800); tone(200,0.25,'square',0.12,60); },
-  superJump(){ tone(330,0.3,'square',0.08,990); },
-  expire(){ tone(600,0.15,'sine',0.08,300); },
+  coin(){ play('coin', 0.55, 0.95 + Math.random()*0.12); },
+  jump(){ play('ramp-jump', 0.8); },
+  hop(){ play('hop', 0.7); },
+  land(){ play('land', 0.45, 0.9); },
+  crash(){ play('crash', 0.9); if(nitroSrc){ try{ nitroSrc.stop(); }catch(e){} nitroSrc=null; } },
+  power(id){
+    if(id==='turbo'){ if(nitroSrc){ try{ nitroSrc.stop(); }catch(e){} } nitroSrc = play('power-nitro', 0.7); }
+    else play('power-'+id, 0.8);
+  },
+  shieldHit(){ play('shield-hit', 0.9); },
+  unlock(){ play('unlock', 0.75); },
+  smash(){ play('smash', 0.75); },
+  superJump(){ play('super-jump', 0.75); },
+  expire(id){ play('power-end', 0.6); if(id==='turbo' && nitroSrc){ try{ nitroSrc.stop(); }catch(e){} nitroSrc=null; } },
+  select(){ play('select', 0.8); },
+  confirm(){ play('confirm', 0.7); },
 };
 function setMuted(m){
   muted=m; try{ localStorage.setItem('rc-rampage-muted', m?'1':'0'); }catch(e){}
-  if(master) master.gain.value = m?0:0.5;
+  if(master) master.gain.value = m?0:1;
   $('icoSound').hidden=m; $('icoMute').hidden=!m;
   $('muteBtn').setAttribute('aria-label', m?'Unmute sound':'Mute sound');
 }
@@ -899,7 +935,7 @@ function maybePower(z){
 function activatePower(id){
   const p = PW[id];
   powers[id] = p.dur;
-  sfx.power(); pop(p.name.toUpperCase()+'!', 'power', p.color);
+  sfx.power(id); pop(p.name.toUpperCase()+'!', 'power', p.color);
   burst(T.x, T.y+0.6, 0, p.color, 14, 2, 3, 0.6);
 }
 function superJump(){
@@ -998,7 +1034,7 @@ function startGame(){
   Object.assign(T,{lane:1,x:0,y:0,vy:0,grounded:true,air:0,onRoof:false,susp:0,suspV:0,spin:0,roll:0});
   truck.rotation.set(0,0,0); tBody.rotation.set(0,0,0);
   dist=0; coinsN=0; bonus=0; speed=START_SPEED; shake=0;
-  resetScenery();
+  resetScenery(); duckMusic(1);
   let z = -48;
   while(z > SPAWN_Z) z -= spawnRow(z);
   nextRow = SPAWN_Z - z;
@@ -1013,7 +1049,7 @@ function crash(){
   $('jumpBtn').hidden = true;
   T.vy = 6; T.spin = (Math.random()<0.5?-1:1)*rand(7,10); T.grounded=false;
   sfx.crash(); burst(T.x,T.y+0.5,0,'#ff5a1f',18,4,6,0.9); burst(T.x,T.y+0.5,0,'#2a2c31',14,3,5,0.9);
-  setMotor(60,0);
+  setEngine(0,0); duckMusic(0.45);
   const s = score(); const nb = s > best;
   if(nb){ best=s; try{ localStorage.setItem('rc-rampage-best', String(best)); }catch(e){} }
   $('oScore').textContent=s; $('oCoins').textContent=coinsN; $('oDist').textContent=Math.floor(dist);
@@ -1021,12 +1057,13 @@ function crash(){
 }
 
 function setPaused(p){
-  if(p && state==='playing'){ prevState='playing'; state='paused'; $('paused').hidden=false; setMotor(60,0); $('resumeBtn').focus(); }
-  else if(!p && state==='paused'){ state='playing'; $('paused').hidden=true; renderer.domElement.focus({preventScroll:true}); }
+  if(p && state==='playing'){ prevState='playing'; state='paused'; $('paused').hidden=false; if(actx) actx.suspend(); $('resumeBtn').focus(); }
+  else if(!p && state==='paused'){ state='playing'; if(actx) actx.resume(); $('paused').hidden=true; renderer.domElement.focus({preventScroll:true}); }
 }
 function toMenu(){
+  if(actx && actx.state==='suspended') actx.resume();
   clearWorld(); state='menu'; Object.assign(T,{lane:1,x:0,y:0,vy:0}); truck.rotation.set(0,0,0); tBody.rotation.set(0,0,0);
-  $('paused').hidden=true; $('over').hidden=true; $('menu').hidden=false; $('bestMenu').textContent=best; setMotor(60,0); $('startBtn').focus();
+  $('paused').hidden=true; $('over').hidden=true; $('menu').hidden=false; $('bestMenu').textContent=best; duckMusic(1); $('startBtn').focus();
 }
 
 const popEl = $('popup');
@@ -1035,7 +1072,7 @@ function pop(text, cls='', color=''){ popEl.className=''; popEl.textContent=text
 function steer(dir){
   if(state!=='playing') return;
   const nl = clamp(T.lane+dir,0,2);
-  if(nl!==T.lane){ T.lane=nl; sfx.lane(); }
+  if(nl!==T.lane){ T.lane=nl; }
 }
 
 // ---------- physics ----------
@@ -1074,7 +1111,7 @@ function physics(dt){
   if(hit){
     if(powers.turbo > 0 || invuln > 0){ hitList.forEach(smash); }
     else if(powers.shield > 0){
-      hitList.forEach(smash); powers.shield = 0; invuln = 0.8;
+      hitList.forEach(smash); powers.shield = 0; invuln = 0.8; sfx.shieldHit();
       pop('SHIELD SAVED YOU', 'power', PW.shield.color);
     }
     else { crash(); return; }
@@ -1126,7 +1163,7 @@ function update(dt){
     // tick power timers
     invuln = Math.max(0, invuln - dt);
     for(const k in powers){
-      if(powers[k] > 0){ powers[k] = Math.max(0, powers[k]-dt); if(powers[k]===0) sfx.expire(); }
+      if(powers[k] > 0){ powers[k] = Math.max(0, powers[k]-dt); if(powers[k]===0) sfx.expire(k); }
     }
   }
 
@@ -1217,8 +1254,11 @@ function update(dt){
   fx.turbo.children.forEach((c,i)=>{ c.scale.set(1, 0.7+Math.random()*0.6, 1); });
 
   // motor sound: RC whine, revs up when wheels are in the air
-  if(state==='playing') setMotor(140 + speed*13 + (T.grounded?0:220), 0.05);
-  else if(state==='menu' && actx) setMotor(110, 0.02);
+  if(actx){
+    if(state==='playing') setEngine(clamp((speed-7)/(MAX_SPEED*1.5-7),0,1) + (T.grounded?0:0.25), 0.16);
+    else if(state==='menu') setEngine(0.05, 0.05);
+    setMusic(playerTheme);
+  }
 
   // camera
   const tx = T.x*0.72, ty = (portrait?3.6:2.7) + T.y*0.55;
@@ -1327,7 +1367,7 @@ function gSelect(id){
   $('gName').textContent = t.name; $('gTag').textContent = t.tag; $('gDesc').textContent = t.desc;
   $('gName').style.setProperty('--gc', UI_COLOR[id]);
   ttRing.material.color.set(UI_COLOR[id]);
-  if(actx) tone(440 + TRUCKS.indexOf(t)*110, 0.08, 'square', 0.05);
+  sfx.select();
 }
 function sizePreview(){
   const w = pCv.clientWidth || 600, h = pCv.clientHeight || 300;
@@ -1348,7 +1388,7 @@ function closeGarage(){
   else { $('menu').hidden = false; updateMyTruck(); $('startBtn').focus(); }
 }
 function confirmGarage(){
-  truckId = gSel;
+  truckId = gSel; sfx.confirm();
   try{ localStorage.setItem('rc-rampage-truck', truckId); }catch(e){}
   setTruckModel(truckId); updateMyTruck();
   if(gMode==='start'){ garageEl.hidden = true; startGame(); }
