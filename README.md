@@ -13,7 +13,7 @@ A 3D endless runner in the browser. Drive a remote-control monster truck through
 ## Controls
 - `←` `→` or `A` `D`: change lane
 - `↑` `W` `Space`: jump (while Super Jump is active)
-- `P`: pause · `M`: sound
+- `P`: pause · `M`: music on/off · `N`: sound effects on/off
 - Phone: swipe or tap a side; swipe up or tap JUMP to jump
 
 Single `index.html`, built with [three.js](https://threejs.org/) r128 from a CDN. No build step.

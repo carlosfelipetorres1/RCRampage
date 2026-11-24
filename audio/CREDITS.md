@@ -6,7 +6,7 @@ All audio in this folder is released under **CC0 1.0** (public domain). Credit i
 
 | File | Track | Author | Source |
 |---|---|---|---|
-| `music/city.mp3` | Sunny City (120 BPM) | MintoDog | https://opengameart.org/content/sunny-city |
+| `music/city.mp3` | Midnight Cruiser | Zane Little Music | https://opengameart.org/content/midnight-cruiser |
 | `music/farm.mp3` | Down the River | Komiku (Loyalty Freak Music) | https://opengameart.org/content/down-the-river |
 | `music/suburb.mp3` | Loop Town | Fupi | https://opengameart.org/content/loop-town |
 | `music/show.mp3` | Speedway | Umplix | https://opengameart.org/content/speedway |

@@ -71,6 +71,10 @@ body{background:#1a1d26;color:var(--text);font-family:var(--f-ui);-webkit-user-s
 .iconbtn:hover{background:var(--plastic-2)}
 .iconbtn:focus-visible,.btn:focus-visible{outline:3px solid var(--hazard);outline-offset:2px}
 .iconbtn svg{width:20px;height:20px}
+.iconbtn .slash{display:none}
+.iconbtn[aria-pressed="false"]{color:var(--muted);background:var(--plastic-2)}
+.iconbtn[aria-pressed="false"] .slash{display:inline;color:var(--truck);stroke:var(--truck)}
+.iconbtn[aria-pressed="false"] .wave{display:none}
 
 #popup{position:fixed;left:50%;top:30%;transform:translate(-50%,-50%);font-family:var(--f-display);font-size:clamp(26px,6vw,46px);color:var(--hazard);text-shadow:0 3px 0 #7a3b00,0 6px 18px rgba(0,0,0,.4);pointer-events:none;opacity:0;z-index:4;white-space:nowrap}
 #popup.show{animation:pop .9s ease-out forwards}
@@ -160,9 +164,11 @@ kbd{font-family:var(--f-ui);font-weight:700;font-size:11px;background:var(--plas
 <button class="jumpbtn" id="jumpBtn" type="button" aria-label="Jump" hidden>JUMP</button>
 
 <div class="ctrls">
-  <button class="iconbtn" id="muteBtn" type="button" aria-label="Mute sound" title="Sound (M)">
-    <svg id="icoSound" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.5 5.5a9 9 0 0 1 0 13"/></svg>
-    <svg id="icoMute" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" hidden><path d="M11 5 6 9H3v6h3l5 4z"/><path d="m16 9 6 6"/><path d="m22 9-6 6"/></svg>
+  <button class="iconbtn" id="musicBtn" type="button" aria-pressed="true" aria-label="Background music on" title="Music (M)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/><path class="slash" d="M3 3l18 18"/></svg>
+  </button>
+  <button class="iconbtn" id="sfxBtn" type="button" aria-pressed="true" aria-label="Sound effects on" title="Sound effects (N)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H3v6h3l5 4z"/><path class="wave" d="M15.5 8.5a5 5 0 0 1 0 7"/><path class="wave" d="M18.5 5.5a9 9 0 0 1 0 13"/><path class="slash" d="m16 9 6 6"/><path class="slash" d="m22 9-6 6"/></svg>
   </button>
   <button class="iconbtn" id="pauseBtn" type="button" aria-label="Pause" title="Pause (P)">
     <svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>
@@ -193,7 +199,7 @@ kbd{font-family:var(--f-ui);font-weight:700;font-size:11px;background:var(--plas
       <span><kbd>←</kbd> <kbd>→</kbd> or <kbd>A</kbd> <kbd>D</kbd> change lane</span>
       <span><kbd>↑</kbd> <kbd>W</kbd> <kbd>Space</kbd> jump (with Super Jump)</span>
       <span>Phone: swipe or tap a side</span>
-      <span><kbd>P</kbd> pause · <kbd>M</kbd> sound</span>
+      <span><kbd>P</kbd> pause · <kbd>M</kbd> music · <kbd>N</kbd> sound effects</span>
     </div>
     <div class="mytruck" id="myTruck" hidden>
       <img id="myTruckImg" alt="">
@@ -788,19 +794,27 @@ const SOUND_FILES = {
 const soundData = {};
 for(const k in SOUND_FILES){ soundData[k] = fetch(SOUND_FILES[k]).then(r=>r.ok ? r.arrayBuffer() : null).catch(()=>null); }
 const buffers = {};
-let actx=null, master=null, sfxBus=null, musicBus=null, engineGain=null, engineFilter=null, engineSrc=null, muted=false;
+let actx=null, master=null, sfxBus=null, musicBus=null, musicOut=null, fxOut=null, engineGain=null, engineFilter=null, engineSrc=null;
+let musicOff=false, sfxOff=false;
 let musicNow = null, musicWanted = 'city', nitroSrc = null;
-try{ muted = localStorage.getItem('rc-rampage-muted')==='1'; }catch(e){}
+try{
+  const old = localStorage.getItem('rc-rampage-muted')==='1';      // the single mute button from earlier versions
+  musicOff = (localStorage.getItem('rc-rampage-music-off') ?? (old?'1':'0'))==='1';
+  sfxOff   = (localStorage.getItem('rc-rampage-sfx-off')   ?? (old?'1':'0'))==='1';
+}catch(e){}
 function decode(ab){ return new Promise((res)=>{ try{ const p = actx.decodeAudioData(ab, res, ()=>res(null)); if(p && p.then) p.then(res, ()=>res(null)); }catch(e){ res(null); } }); }
 function initAudio(){
   if(actx){ if(actx.state==='suspended' && state!=='paused') actx.resume(); return; }
   try{
     actx = new (window.AudioContext||window.webkitAudioContext)();
-    master = actx.createGain(); master.gain.value = muted?0:1; master.connect(actx.destination);
-    sfxBus = actx.createGain(); sfxBus.gain.value = 0.7; sfxBus.connect(master);
-    musicBus = actx.createGain(); musicBus.gain.value = 0.32; musicBus.connect(master);
+    master = actx.createGain(); master.gain.value = 1; master.connect(actx.destination);
+    // two independent switches: musicOut (background music) and fxOut (effects + engine)
+    musicOut = actx.createGain(); musicOut.gain.value = musicOff?0:1; musicOut.connect(master);
+    fxOut = actx.createGain(); fxOut.gain.value = sfxOff?0:1; fxOut.connect(master);
+    sfxBus = actx.createGain(); sfxBus.gain.value = 0.7; sfxBus.connect(fxOut);
+    musicBus = actx.createGain(); musicBus.gain.value = 0.32; musicBus.connect(musicOut);
     engineFilter = actx.createBiquadFilter(); engineFilter.type='lowpass'; engineFilter.frequency.value=1500; engineFilter.Q.value=0.5;
-    engineGain = actx.createGain(); engineGain.gain.value = 0; engineFilter.connect(engineGain); engineGain.connect(master);
+    engineGain = actx.createGain(); engineGain.gain.value = 0; engineFilter.connect(engineGain); engineGain.connect(fxOut);
   }catch(e){ actx=null; return; }
   for(const k in soundData){
     soundData[k].then(ab=>ab && decode(ab.slice(0))).then(b=>{
@@ -811,7 +825,7 @@ function initAudio(){
   }
 }
 function play(name, vol=1, rate=1){
-  if(!actx || muted || !buffers[name]) return null;
+  if(!actx || sfxOff || !buffers[name]) return null;
   const s = actx.createBufferSource(); s.buffer = buffers[name]; s.playbackRate.value = rate;
   const g = actx.createGain(); g.gain.value = vol; s.connect(g); g.connect(sfxBus); s.start();
   return s;
@@ -859,13 +873,20 @@ const sfx = {
   select(){ play('select', 0.8); },
   confirm(){ play('confirm', 0.7); },
 };
-function setMuted(m){
-  muted=m; try{ localStorage.setItem('rc-rampage-muted', m?'1':'0'); }catch(e){}
-  if(master) master.gain.value = m?0:1;
-  $('icoSound').hidden=m; $('icoMute').hidden=!m;
-  $('muteBtn').setAttribute('aria-label', m?'Unmute sound':'Mute sound');
+function setMusicOff(off){
+  musicOff = off; try{ localStorage.setItem('rc-rampage-music-off', off?'1':'0'); }catch(e){}
+  if(musicOut) musicOut.gain.setTargetAtTime(off?0:1, actx.currentTime, 0.05);
+  $('musicBtn').setAttribute('aria-pressed', String(!off));
+  $('musicBtn').setAttribute('aria-label', off ? 'Background music off' : 'Background music on');
 }
-setMuted(muted);
+function setSfxOff(off){
+  sfxOff = off; try{ localStorage.setItem('rc-rampage-sfx-off', off?'1':'0'); }catch(e){}
+  if(fxOut) fxOut.gain.setTargetAtTime(off?0:1, actx.currentTime, 0.05);
+  if(off && nitroSrc){ try{ nitroSrc.stop(); }catch(e){} nitroSrc = null; }
+  $('sfxBtn').setAttribute('aria-pressed', String(!off));
+  $('sfxBtn').setAttribute('aria-label', off ? 'Sound effects off' : 'Sound effects on');
+}
+setMusicOff(musicOff); setSfxOff(sfxOff);
 
 // ---------- game state ----------
 let state = 'menu', prevState='menu';
@@ -1427,7 +1448,8 @@ window.addEventListener('keydown', e=>{
   if(k==='ArrowLeft' || k==='a' || k==='A'){ steer(-1); e.preventDefault(); }
   else if(k==='ArrowRight' || k==='d' || k==='D'){ steer(1); e.preventDefault(); }
   else if(k==='p' || k==='P' || k==='Escape'){ if(state==='playing') setPaused(true); else if(state==='paused') setPaused(false); }
-  else if(k==='m' || k==='M'){ setMuted(!muted); }
+  else if(k==='m' || k==='M'){ initAudio(); setMusicOff(!musicOff); }
+  else if(k==='n' || k==='N'){ initAudio(); setSfxOff(!sfxOff); }
   else if(state==='playing' && (k==='ArrowUp' || k==='w' || k==='W' || k===' ')){ superJump(); e.preventDefault(); }
   else if((k===' ' || k==='Enter') && document.activeElement===renderer.domElement){
     if(state==='menu' && !$('menu').hidden) { requestStart(); e.preventDefault(); }
@@ -1458,7 +1480,8 @@ $('retryBtn').addEventListener('click', startGame);
 $('resumeBtn').addEventListener('click', ()=>setPaused(false));
 $('quitBtn').addEventListener('click', toMenu);
 $('pauseBtn').addEventListener('click', ()=>{ if(state==='playing') setPaused(true); else if(state==='paused') setPaused(false); });
-$('muteBtn').addEventListener('click', ()=>{ initAudio(); setMuted(!muted); });
+$('musicBtn').addEventListener('click', ()=>{ initAudio(); setMusicOff(!musicOff); });
+$('sfxBtn').addEventListener('click', ()=>{ initAudio(); setSfxOff(!sfxOff); });
 document.addEventListener('visibilitychange', ()=>{ if(document.hidden) setPaused(true); });
 
 $('bestMenu').textContent = best; $('bestOver').textContent = best;
