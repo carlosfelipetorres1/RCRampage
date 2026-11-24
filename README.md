@@ -8,6 +8,7 @@ A 3D endless runner in the browser. Drive a remote-control monster truck through
 - 4 monster trucks to choose from in the garage (Blaze, Bulldog, Shark, Night Howler)
 - Super powers that unlock with score: Super Jump (250), Coin Magnet (600), Shield (1,000), Nitro (1,600)
 - Roadside scenery that changes at random: city, farmland, suburbs and a monster truck show
+- 10 random crash styles (Flipped, Shattered, Sent to orbit, Ball pit, Pancaked, Wheels off, Kaboom, Pixelated, Ghosted, Popped), with a counter of the ones you've found
 - Sampled engine sound, sound effects for jumps, crashes and every power, and a music track for each scenery
 
 ## Controls
