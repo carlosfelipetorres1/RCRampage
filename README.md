@@ -5,7 +5,8 @@ A 3D endless runner in the browser. Drive a remote-control monster truck through
 **Play:** https://carlosfelipetorres1.github.io/RCRampage/
 
 ## Features
-- 4 monster trucks to choose from in the garage (Blaze, Bulldog, Shark, Night Howler)
+- Coins go into a bank you spend in the garage: unlock trucks (Bulldog 150, Shark 300, Night Howler 500), each with its own perk, and upgrade how long each super power lasts
+- Three missions at a time (e.g. "Land on 4 car roofs in one run") that pay coins and get harder as you complete them
 - Super powers that unlock with score: Super Jump (250), Coin Magnet (600), Shield (1,000), Nitro (1,600)
 - Roadside scenery that changes at random: city, farmland, suburbs and a monster truck show
 - 10 random crash styles (Flipped, Shattered, Sent to orbit, Ball pit, Pancaked, Wheels off, Kaboom, Pixelated, Ghosted, Popped), with a counter of the ones you've found

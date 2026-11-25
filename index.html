@@ -105,8 +105,8 @@ body{background:#1a1d26;color:var(--text);font-family:var(--f-ui);-webkit-user-s
 @keyframes pop{0%{opacity:0;transform:translate(-50%,-30%) scale(.6)}15%{opacity:1;transform:translate(-50%,-50%) scale(1.08)}70%{opacity:1;transform:translate(-50%,-60%) scale(1)}100%{opacity:0;transform:translate(-50%,-80%) scale(.95)}}
 
 /* Overlays */
-.overlay{position:fixed;inset:0;display:grid;place-items:safe center;overflow-y:auto;z-index:10;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);padding-left:max(16px, env(safe-area-inset-left,0px));padding-right:max(16px, env(safe-area-inset-right,0px));background:radial-gradient(ellipse at center, rgba(10,12,18,.25), rgba(10,12,18,.6))}
-.panel{position:relative;width:min(460px,100%);background:var(--plastic);border:1px solid var(--edge);border-radius:18px;padding:26px 24px 22px;box-shadow:0 24px 60px rgba(0,0,0,.5);overflow:hidden}
+.overlay{position:fixed;inset:0;display:grid;grid-template-columns:minmax(0,1fr);place-items:safe center;overflow-y:auto;z-index:10;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);padding-left:max(16px, env(safe-area-inset-left,0px));padding-right:max(16px, env(safe-area-inset-right,0px));background:radial-gradient(ellipse at center, rgba(10,12,18,.25), rgba(10,12,18,.6))}
+.panel{box-sizing:border-box;position:relative;width:min(460px,100%);background:var(--plastic);border:1px solid var(--edge);border-radius:18px;padding:26px 24px 22px;box-shadow:0 24px 60px rgba(0,0,0,.5);overflow:hidden}
 .panel::before{content:"";position:absolute;left:0;right:0;top:0;height:10px;background:repeating-linear-gradient(-45deg,var(--hazard) 0 14px,#16181d 14px 28px)}
 .eyebrow{font-size:11px;letter-spacing:.22em;font-weight:700;color:var(--muted);text-transform:uppercase;margin:6px 0 4px}
 h1{font-family:var(--f-display);font-weight:400;font-size:clamp(40px,11vw,58px);line-height:.95;margin:0 0 12px;color:var(--text);text-wrap:balance}
@@ -134,6 +134,47 @@ kbd{font-family:var(--f-ui);font-weight:700;font-size:11px;background:var(--plas
 .stat{background:var(--lcd);color:var(--lcd-ink);border-radius:8px;padding:8px 10px;font-variant-numeric:tabular-nums}
 .stat small{display:block;font-size:10px;letter-spacing:.14em;font-weight:700;opacity:.75}
 .stat b{font-size:22px}
+.pnote{font-weight:600;letter-spacing:.04em;text-transform:none;color:var(--muted);margin-left:6px}
+.mlist{list-style:none;margin:0 0 16px;padding:0;display:grid;gap:6px}
+.mlist li{display:grid;grid-template-columns:1fr auto;gap:4px 10px;align-items:center;background:var(--plastic-2);border-radius:10px;padding:8px 10px;font-size:13px}
+.mlist .mtext{min-width:0}
+.mlist .mreward{display:flex;align-items:center;gap:5px;font-weight:700;color:var(--hazard);font-variant-numeric:tabular-nums}
+.mlist .mbar{height:5px;border-radius:3px;background:#14161b;overflow:hidden}
+.mlist .mbar i{display:block;height:100%;background:var(--hazard);width:0}
+.mlist .mmeta{font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums;text-align:right}
+.mlist li.done{background:color-mix(in srgb, var(--p-jump) 16%, var(--plastic-2))}
+.mlist li.done .mbar i{background:var(--p-jump)}
+.mlist li.done .mreward{color:var(--p-jump)}
+.coinico{display:inline-block;width:13px;height:13px;border-radius:50%;background:radial-gradient(circle at 40% 35%,#fff3b8,#ffc933 45%,#b07a00);box-shadow:0 0 0 1px rgba(0,0,0,.25);flex:0 0 auto;vertical-align:-2px}
+.wallet{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--muted)}
+.wallet b{color:var(--hazard);font-variant-numeric:tabular-nums}
+.wallet.big{font-size:20px;font-weight:700;background:var(--plastic-2);border-radius:12px;padding:8px 12px}
+.wallet.big .coinico{width:18px;height:18px}
+.ghead{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.tabs{display:flex;gap:6px;margin:0 0 12px;border-bottom:1px solid var(--edge)}
+.tab{font-family:var(--f-ui);font-weight:700;font-size:13px;letter-spacing:.06em;text-transform:uppercase;background:none;border:0;border-bottom:3px solid transparent;color:var(--muted);padding:8px 10px;cursor:pointer}
+.tab[aria-selected="true"]{color:var(--text);border-bottom-color:var(--truck)}
+.tab:focus-visible{outline:3px solid var(--hazard);outline-offset:2px}
+.panel .perk{margin:-8px 0 12px;font-size:13px;color:var(--hazard);font-weight:600}
+.card{position:relative}
+.card .price{display:flex;align-items:center;gap:4px;font-size:12px;font-weight:700;color:var(--hazard);padding:0 2px}
+.card.locked img{filter:grayscale(.85) brightness(.6)}
+.card .lockbadge{position:absolute;top:10px;right:10px;background:rgba(10,12,16,.8);border-radius:6px;padding:2px 6px;font-size:10px;font-weight:700;letter-spacing:.1em;color:var(--text)}
+.btn:disabled{opacity:.45;cursor:not-allowed;transform:none}
+.ulist{list-style:none;margin:0 0 16px;padding:0;display:grid;gap:8px}
+.ulist li{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;background:var(--plastic-2);border-radius:12px;padding:10px 12px}
+.ulist .dot{width:14px;height:14px;border-radius:50%;background:var(--c);box-shadow:0 0 10px var(--c)}
+.ulist b{display:block;font-size:14px}
+.ulist small{display:block;color:var(--muted);font-size:12px}
+.pips{display:flex;gap:4px;margin-top:4px}
+.pips i{width:16px;height:5px;border-radius:3px;background:#14161b}
+.pips i.on{background:var(--c)}
+.ulist .btn{font-size:13px;padding:9px 12px;display:inline-flex;align-items:center;gap:6px}
+.howto{margin:0 0 16px;background:var(--plastic-2);border-radius:12px;padding:0 12px}
+.howto summary{cursor:pointer;padding:10px 0;font-weight:700;font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.howto[open]{padding-bottom:2px}
+.howto .legend li{background:var(--plastic)}
+.panel .earned{display:flex;align-items:center;gap:8px;margin:-6px 0 14px;font-size:14px;font-weight:600;color:var(--hazard)}
 .panel .found{margin:-6px 0 16px;font-size:12px;letter-spacing:.06em;color:var(--muted)}
 .newbest{color:var(--hazard);font-weight:700;letter-spacing:.1em;font-size:12px;margin:-6px 0 12px}
 @media (max-width:420px){.lcd-screen{min-width:140px}.score{font-size:24px}.lcd-row{gap:8px;font-size:11px}.panel{padding:22px 16px 18px}.legend{grid-template-columns:1fr}}
@@ -183,6 +224,10 @@ kbd{font-family:var(--f-ui);font-weight:700;font-size:11px;background:var(--plas
     <div class="eyebrow">1:8 scale · 4×4 · remote control</div>
     <h1>RC <span>Rampage</span></h1>
     <p>Steer a remote-control monster truck through rush-hour traffic. Weave between cars, hit trailer ramps and road-work bumps to get air, and ride along car roofs.</p>
+    <div class="ptitle">Missions <span class="pnote">Complete them to earn coins</span></div>
+    <ul class="mlist" id="mListMenu"></ul>
+    <details class="howto">
+      <summary>How to play</summary>
     <ul class="legend">
       <li><span class="sw ramp"></span><span><b>Trailer ramp</b><small>Big jump</small></span></li>
       <li><span class="sw bump"></span><span><b>Road-work bump</b><small>Hop the barrier</small></span></li>
@@ -202,29 +247,45 @@ kbd{font-family:var(--f-ui);font-weight:700;font-size:11px;background:var(--plas
       <span>Phone: swipe or tap a side</span>
       <span><kbd>P</kbd> pause · <kbd>M</kbd> music · <kbd>N</kbd> sound effects</span>
     </div>
+    </details>
     <div class="mytruck" id="myTruck" hidden>
       <img id="myTruckImg" alt="">
       <div><b id="myTruckName">Blaze</b>Your truck</div>
-      <button class="btn ghost small" id="changeBtn" type="button">Change truck</button>
+      <button class="btn ghost small" id="changeBtn" type="button">Garage</button>
     </div>
     <div class="row">
       <button class="btn" id="startBtn" type="button">Start engine</button>
       <span class="best">Best <b id="bestMenu">0</b></span>
+      <span class="wallet"><span class="coinico" aria-hidden="true"></span><b id="bankMenu">0</b> coins</span>
     </div>
   </div>
 </div>
 
 <div class="overlay" id="garage" hidden>
   <div class="panel garage">
-    <div class="eyebrow">Garage</div>
-    <h2>Choose your truck</h2>
+    <div class="ghead">
+      <div><div class="eyebrow">Garage</div><h2>Your trucks</h2></div>
+      <span class="wallet big"><span class="coinico" aria-hidden="true"></span><b id="bankGarage">0</b></span>
+    </div>
+    <div class="tabs" role="tablist" aria-label="Garage sections">
+      <button class="tab" id="tabTrucks" role="tab" type="button" aria-selected="true" aria-controls="paneTrucks">Trucks</button>
+      <button class="tab" id="tabUpgrades" role="tab" type="button" aria-selected="false" aria-controls="paneUpgrades">Power upgrades</button>
+    </div>
+    <div id="paneTrucks" role="tabpanel" aria-labelledby="tabTrucks">
     <div class="preview"><canvas id="previewCv" aria-hidden="true"></canvas><div class="pname"><b id="gName">Blaze</b><span id="gTag">Classic pickup</span></div></div>
     <p class="gdesc" id="gDesc"></p>
+    <p class="perk" id="gPerk"></p>
     <div class="cards" id="cards" role="radiogroup" aria-label="Monster trucks"></div>
     <div class="row">
       <button class="btn" id="gOk" type="button">Drive this truck</button>
       <button class="btn ghost" id="gBack" type="button">Back</button>
-      <span class="best">All trucks handle the same</span>
+      <span class="best" id="gNote"></span>
+    </div>
+    </div>
+    <div id="paneUpgrades" role="tabpanel" aria-labelledby="tabUpgrades" hidden>
+      <p class="gdesc">Each upgrade makes a super power last longer. Powers still unlock by score during a run.</p>
+      <ul class="ulist" id="ulist"></ul>
+      <div class="row"><button class="btn ghost" id="gBack2" type="button">Back</button></div>
     </div>
   </div>
 </div>
@@ -240,9 +301,12 @@ kbd{font-family:var(--f-ui);font-weight:700;font-size:11px;background:var(--plas
       <div class="stat"><small>DIST</small><b id="oDist">0</b><small>metres</small></div>
     </div>
     <p class="found" id="crashFound"></p>
+    <p class="earned"><span class="coinico" aria-hidden="true"></span><span id="earned">+0 coins</span></p>
+    <div class="ptitle">Missions</div>
+    <ul class="mlist" id="mListOver"></ul>
     <div class="row">
       <button class="btn" id="retryBtn" type="button">Drive again</button>
-      <button class="btn ghost" id="overChangeBtn" type="button">Change truck</button>
+      <button class="btn ghost" id="overChangeBtn" type="button">Garage</button>
       <span class="best">Best <b id="bestOver">0</b></span>
     </div>
   </div>
@@ -666,7 +730,7 @@ function updateScenery(d){
   while(farZ > SCN_FAR){ spawnChunk(farZ - CHUNK); farZ -= CHUNK; }
   for(let i=zoneMarks.length-1;i>=0;i--){
     const m = zoneMarks[i]; m.z += d;
-    if(m.z > -2){ zoneMarks.splice(i,1); playerTheme = m.theme; if(state==='playing') pop(THEMES[m.theme], 'power', '#ffc21a'); }
+    if(m.z > -2){ zoneMarks.splice(i,1); playerTheme = m.theme; if(run && state==='playing') run.themes.add(m.theme); if(state==='playing') pop(THEMES[m.theme], 'power', '#ffc21a'); }
   }
 }
 resetScenery();
@@ -946,7 +1010,7 @@ function maybePower(z){
   if(unlocked===0) return;
   let id = pendingPower;
   if(!id){
-    if(Math.random() > 0.24) return;
+    if(Math.random() > (truckId==='blaze' ? 0.32 : 0.24)) return;
     const pool = POWERS.slice(0,unlocked); let r = Math.random()*pool.reduce((s,p)=>s+p.weight,0);
     for(const p of pool){ r -= p.weight; if(r<=0){ id=p.id; break; } }
   }
@@ -957,20 +1021,23 @@ function maybePower(z){
 }
 function activatePower(id){
   const p = PW[id];
-  powers[id] = p.dur;
+  powers[id] = powersMax[id] = powerDur(id);
+  if(run) run.powers++;
   sfx.power(id); pop(p.name.toUpperCase()+'!', 'power', p.color);
   burst(T.x, T.y+0.6, 0, p.color, 14, 2, 3, 0.6);
 }
 function superJump(){
   if(state!=='playing' || powers.jump<=0 || !T.grounded) return;
   T.vy = 9.8; T.grounded = false; T.air = 0; T.suspV = -1.2;
+  if(run) run.superJumps++;
   sfx.superJump(); burst(T.x, T.y+0.05, 0, '#3ddc84', 10, 1.6, 1.5, 0.5);
 }
 function smash(o){
   if(o.fling) return;
   o.zones = [];
   o.fling = {vy:rand(7,10), vx:(o.x>=T.x?1:-1)*rand(3,6), rx:rand(-5,5), rz:rand(-6,6)};
-  bonus += 50; shake = Math.max(shake, 0.35);
+  bonus += truckId==='howler' ? 100 : 50; shake = Math.max(shake, 0.35);
+  if(run) run.smashes++;
   sfx.smash(); burst(o.x, 1, o.z, '#ffd34d', 12, 3, 5, 0.7); burst(o.x, 1, o.z, '#2a2c31', 10, 3, 4, 0.7);
 }
 
@@ -1053,7 +1120,7 @@ function clearWorld(){
 
 function startGame(){
   initAudio();
-  clearWorld(); clearDeath();
+  clearWorld(); clearDeath(); newRun();
   Object.assign(T,{lane:1,x:0,y:0,vy:0,grounded:true,air:0,onRoof:false,susp:0,suspV:0,spin:0,roll:0});
   truck.rotation.set(0,0,0); tBody.rotation.set(0,0,0);
   dist=0; coinsN=0; bonus=0; speed=START_SPEED; shake=0;
@@ -1062,6 +1129,7 @@ function startGame(){
   while(z > SPAWN_Z) z -= spawnRow(z);
   nextRow = SPAWN_Z - z;
   state='playing';
+  if(truckId==='bulldog'){ powers.shield = powersMax.shield = powerDur('shield'); }
   $('menu').hidden=true; $('over').hidden=true; $('paused').hidden=true;
   renderer.domElement.focus({preventScroll:true});
 }
@@ -1305,12 +1373,16 @@ function crash(){
   sfx.crash();
   death = Object.assign({def}, DEATH_FX[def.id]());
   const isNew = !foundDeaths.has(def.id);
+  if(isNew && run) run.newCrash = true;
   foundDeaths.add(def.id);
   try{ localStorage.setItem('rc-rampage-crashes', JSON.stringify([...foundDeaths])); }catch(e){}
   pop(def.name.toUpperCase()+'!', 'power', '#ff5a1f');
   $('overTitle').textContent = def.name + '!';
   $('crashFound').textContent = `Crash styles found: ${foundDeaths.size} / ${DEATHS.length}` + (isNew ? ' · new one!' : '');
   setEngine(0,0); duckMusic(0.45);
+  const earned = finishRun();
+  $('earned').textContent = `+${earned} coins banked · ${bank.toLocaleString('en')} in the bank`;
+  renderMissions($('mListOver'));
   const s = score(); const nb = s > best;
   if(nb){ best=s; try{ localStorage.setItem('rc-rampage-best', String(best)); }catch(e){} }
   $('oScore').textContent=s; $('oCoins').textContent=coinsN; $('oDist').textContent=Math.floor(dist);
@@ -1323,7 +1395,8 @@ function setPaused(p){
 }
 function toMenu(){
   if(actx && actx.state==='suspended') actx.resume();
-  clearWorld(); clearDeath(); state='menu'; Object.assign(T,{lane:1,x:0,y:0,vy:0}); truck.rotation.set(0,0,0); tBody.rotation.set(0,0,0);
+  finishRun(); run = null;
+  clearWorld(); clearDeath(); state='menu'; updateMyTruck(); Object.assign(T,{lane:1,x:0,y:0,vy:0}); truck.rotation.set(0,0,0); tBody.rotation.set(0,0,0);
   $('paused').hidden=true; $('over').hidden=true; $('menu').hidden=false; $('bestMenu').textContent=best; duckMusic(1); $('startBtn').focus();
 }
 
@@ -1381,9 +1454,9 @@ function physics(dt){
     T.y = ramp.h; T.vy = launchVy(speed); T.grounded = false; T.air = 0; T.onRamp = true;
     return;
   }
-  if(T.onRamp){ T.onRamp=false; sfx.jump(); pop('AIR!'); burst(T.x,0.9,0,'#c9b79c',8,1.5,2); }
+  if(T.onRamp){ T.onRamp=false; sfx.jump(); if(run) run.ramps++; pop('AIR!'); burst(T.x,0.9,0,'#c9b79c',8,1.5,2); }
   if(bump && T.grounded){
-    T.vy = bumpVy(speed); T.grounded=false; T.air=0; sfx.hop(); burst(T.x,0.2,0,'#ffc21a',6,1.2,2);
+    T.vy = bumpVy(speed); T.grounded=false; T.air=0; sfx.hop(); if(run) run.bumps++; burst(T.x,0.2,0,'#ffc21a',6,1.2,2);
     return;
   }
   if(T.grounded){
@@ -1394,8 +1467,8 @@ function physics(dt){
     T.y = support; T.grounded = true;
     if(T.air > 0.3){
       T.suspV = -Math.min(3, impact*0.35); sfx.land(); burst(T.x,support+0.05,0,'#b8ad9c',10,1.8,1.6);
-      if(T.air > 0.8){ bonus += 25; pop('BIG AIR +25'); }
-      if(roof){ bonus += 15; setTimeout(()=>{ if(state==='playing') pop('ROOF RIDE +15'); }, T.air>0.8?650:0); }
+      if(T.air > 0.8){ bonus += 25; pop('BIG AIR +25'); if(run) run.bigAir++; }
+      if(roof){ bonus += 15; if(run) run.roofs++; setTimeout(()=>{ if(state==='playing') pop('ROOF RIDE +15'); }, T.air>0.8?650:0); }
     }
     T.vy = 0; T.air = 0;
   }
@@ -1421,6 +1494,7 @@ function update(dt){
       const p = POWERS[unlocked++]; pendingPower = p.id;
       sfx.unlock(); pop(p.name.toUpperCase()+' UNLOCKED', 'power', p.color);
     }
+    checkMissions();
     // tick power timers
     invuln = Math.max(0, invuln - dt);
     for(const k in powers){
@@ -1454,14 +1528,14 @@ function update(dt){
   const magnetOn = state==='playing' && powers.magnet > 0;
   for(let i=coins.length-1;i>=0;i--){
     const c = coins[i]; c.position.z += d; c.rotation.y += dt*4;
-    if(magnetOn && c.position.z > -16 && c.position.z < 1.5){
+    if(magnetOn && c.position.z > (truckId==='shark' ? -24 : -16) && c.position.z < 1.5){
       const k = Math.min(1, dt*9);
       c.position.x += (T.x - c.position.x)*k;
       c.position.y += (T.y + 0.4 - c.position.y)*k;
       c.position.z += (0 - c.position.z)*k*0.6;
     }
     if(state==='playing' && Math.abs(c.position.x-T.x)<0.95 && Math.abs(c.position.z)<0.9 && Math.abs(c.position.y-(T.y+0.4))<0.85){
-      coinsN++; sfx.coin(); burst(c.position.x,c.position.y,0,'#ffd34d',6,1.2,2.5,0.45);
+      coinsN++; sfx.coin(); if(run) run.themeCoins[playerTheme] = (run.themeCoins[playerTheme]||0) + 1; burst(c.position.x,c.position.y,0,'#ffd34d',6,1.2,2.5,0.45);
       scene.remove(c); coins.splice(i,1); continue;
     }
     if(c.position.z > 8){ scene.remove(c); coins.splice(i,1); }
@@ -1542,7 +1616,7 @@ function update(dt){
     for(const p of POWERS){
       const chip = chips[p.id], left = powers[p.id];
       chip.el.hidden = !(left > 0);
-      if(left > 0){ chip.bar.style.width = (left/p.dur*100).toFixed(1)+'%'; chip.el.classList.toggle('low', left < 2); }
+      if(left > 0){ chip.bar.style.width = (left/(powersMax[p.id]||p.dur)*100).toFixed(1)+'%'; chip.el.classList.toggle('low', left < 2); }
     }
     jumpBtn.hidden = !(state==='playing' && powers.jump > 0 && coarse);
   }
@@ -1573,6 +1647,144 @@ function resize(){
 }
 window.addEventListener('resize', resize);
 resize();
+
+// ---------- progression: coin bank, trucks to buy, power upgrades, missions ----------
+const SAVE = {
+  load(k, d){ try{ const v = localStorage.getItem('rc-rampage-'+k); return v==null ? d : JSON.parse(v); }catch(e){ return d; } },
+  save(k, v){ try{ localStorage.setItem('rc-rampage-'+k, JSON.stringify(v)); }catch(e){} },
+};
+let bank = SAVE.load('bank', 0);
+const TRUCK_PRICE = {blaze:0, bulldog:150, shark:300, howler:500};
+const TRUCK_PERK = {
+  blaze:   'Lucky: super-power orbs show up more often',
+  bulldog: 'Tough: starts every run with a Shield',
+  shark:   'Coin hunter: Coin Magnet lasts 50% longer and reaches further',
+  howler:  'Speed demon: Nitro lasts 2 s longer and smashes pay double',
+};
+let owned = SAVE.load('owned', null);
+if(!Array.isArray(owned)){
+  // first time: Blaze is free, and anyone who already picked another truck keeps it
+  owned = ['blaze'];
+  if(truckId && truckId!=='blaze') owned.push(truckId);
+  SAVE.save('owned', owned);
+}
+const ownsTruck = id => owned.includes(id);
+
+const UPG_STEP = {jump:4, magnet:3, shield:5, turbo:1};
+const UPG_COST = [100, 250, 500];
+const UPG_MAX = UPG_COST.length;
+const upgrades = Object.assign({jump:0, magnet:0, shield:0, turbo:0}, SAVE.load('upgrades', {}));
+const powersMax = {jump:0, magnet:0, shield:0, turbo:0};
+function powerDur(id, lvl = upgrades[id], truck = truckId){
+  let d = PW[id].dur + lvl*UPG_STEP[id];
+  if(id==='magnet' && truck==='shark') d *= 1.5;
+  if(id==='turbo' && truck==='howler') d += 2;
+  return Math.round(d*10)/10;
+}
+
+function addBank(n){ bank += n; SAVE.save('bank', bank); updateWallets(); }
+function updateWallets(){ for(const id of ['bankMenu','bankGarage']) $(id).textContent = bank.toLocaleString('en'); }
+
+const THEME_NAMES = {city:'City', farm:'Farmland', suburb:'Suburbs', show:'Monster truck show'};
+const MISSION_TYPES = [
+  {type:'coinsRun',   levels:[30,60,100],     reward:[50,100,175], text:n=>`Collect ${n} coins in one run`},
+  {type:'coinsTotal', levels:[100,250,500],   reward:[60,120,200], text:n=>`Collect ${n} coins in total`, total:true},
+  {type:'dist',       levels:[500,1000,2000], reward:[50,100,200], text:n=>`Drive ${n.toLocaleString('en')} m in one run`},
+  {type:'score',      levels:[1000,2500,5000],reward:[60,120,220], text:n=>`Score ${n.toLocaleString('en')} in one run`},
+  {type:'roofs',      levels:[2,4,7],         reward:[60,110,180], text:n=>`Land on ${n} car roofs in one run`},
+  {type:'ramps',      levels:[2,4,6],         reward:[50,100,160], text:n=>`Jump off ${n} trailer ramps in one run`},
+  {type:'bumps',      levels:[5,15,30],       reward:[50,100,160], text:n=>`Hop ${n} road-work bumps in total`, total:true},
+  {type:'powers',     levels:[2,4,6],         reward:[60,110,180], text:n=>`Pick up ${n} super powers in one run`},
+  {type:'superJumps', levels:[3,6,10],        reward:[60,110,170], text:n=>`Use Super Jump ${n} times in one run`},
+  {type:'smashes',    levels:[2,5,10],        reward:[80,150,250], text:n=>`Smash ${n} cars with Shield or Nitro`, total:true},
+  {type:'bigAir',     levels:[2,4,7],         reward:[60,110,170], text:n=>`Get ${n} BIG AIR bonuses in one run`},
+  {type:'theme',      levels:['farm','suburb','show'], reward:[80,80,100], text:t=>`Reach the ${THEME_NAMES[t]} in one run`, pickAny:true},
+  {type:'themeCoins', levels:[['farm',15],['suburb',15],['show',15]], reward:[90,90,100], text:g=>`Collect ${g[1]} coins in the ${THEME_NAMES[g[0]]} in one run`, pickAny:true},
+  {type:'crash',      levels:[1],             reward:[75],         text:()=>'Discover a crash style you haven’t seen'},
+];
+const missionDef = m => MISSION_TYPES.find(t=>t.type===m.type);
+let missions = SAVE.load('missions', []);
+let missionsDone = SAVE.load('missions-done', 0);
+let run = null;
+
+function newMission(exclude){
+  const pool = MISSION_TYPES.filter(d=>!exclude.includes(d.type) && !(d.type==='crash' && foundDeaths.size>=DEATHS.length));
+  const d = pick(pool);
+  const tier = Math.min(d.levels.length-1, Math.floor(missionsDone/3) + (Math.random()<0.3 ? 1 : 0));
+  const i = d.pickAny ? (Math.random()*d.levels.length|0) : tier;
+  return {type:d.type, goal:d.levels[i], reward:d.reward[i], base:0, done:false};
+}
+function fillMissions(){
+  missions = missions.filter(m=>!m.done && missionDef(m));
+  while(missions.length < 3) missions.push(newMission(missions.map(m=>m.type)));
+  SAVE.save('missions', missions);
+}
+function goalNum(m){ return m.type==='themeCoins' ? m.goal[1] : (m.type==='theme' || m.type==='crash') ? 1 : m.goal; }
+function missionValue(m){
+  const total = missionDef(m).total;
+  if(!run) return total ? m.base : 0;
+  if(total && run.finished) return m.base;     // the run is already folded into base
+  switch(m.type){
+    case 'coinsRun': return coinsN;
+    case 'coinsTotal': return m.base + coinsN;
+    case 'dist': return Math.floor(dist);
+    case 'score': return score();
+    case 'roofs': return run.roofs;
+    case 'ramps': return run.ramps;
+    case 'bumps': return m.base + run.bumps;
+    case 'powers': return run.powers;
+    case 'superJumps': return run.superJumps;
+    case 'smashes': return m.base + run.smashes;
+    case 'bigAir': return run.bigAir;
+    case 'theme': return run.themes.has(m.goal) ? 1 : 0;
+    case 'themeCoins': return run.themeCoins[m.goal[0]] || 0;
+    case 'crash': return run.newCrash ? 1 : 0;
+  }
+  return 0;
+}
+function newRun(){
+  fillMissions();
+  run = {roofs:0, ramps:0, bumps:0, powers:0, superJumps:0, smashes:0, bigAir:0, themes:new Set(['city']), themeCoins:{}, newCrash:false, finished:false};
+}
+let missionPopAt = 0;
+function checkMissions(){
+  if(!run || run.finished) return;
+  for(const m of missions){
+    if(m.done || missionValue(m) < goalNum(m)) continue;
+    m.done = true; missionsDone++;
+    addBank(m.reward);
+    sfx.unlock();
+    // don't stomp on another banner shown in the same instant
+    const delay = Math.max(0, missionPopAt - performance.now());
+    missionPopAt = performance.now() + delay + 1100;
+    setTimeout(()=>pop(`MISSION DONE +${m.reward}`, 'power', '#3ddc84'), delay);
+  }
+}
+// bank the run's coins and lock in progress for missions that count across runs
+function finishRun(){
+  if(!run || run.finished) return 0;
+  checkMissions();
+  for(const m of missions) if(!m.done && missionDef(m).total) m.base = missionValue(m);
+  run.finished = true;
+  SAVE.save('missions', missions); SAVE.save('missions-done', missionsDone);
+  addBank(coinsN);
+  return coinsN;
+}
+function renderMissions(el){
+  el.textContent = '';
+  for(const m of missions){
+    const d = missionDef(m), g = goalNum(m), v = m.done ? g : Math.min(g, missionValue(m));
+    const li = document.createElement('li'); if(m.done) li.className = 'done';
+    const tx = document.createElement('span'); tx.className = 'mtext'; tx.textContent = d.text(m.goal);
+    const rw = document.createElement('span'); rw.className = 'mreward';
+    const ci = document.createElement('span'); ci.className = 'coinico'; ci.setAttribute('aria-hidden','true');
+    rw.append(ci, document.createTextNode(m.done ? `+${m.reward} ✓` : String(m.reward)));
+    const bar = document.createElement('span'); bar.className = 'mbar'; const bi = document.createElement('i'); bi.style.width = (v/g*100).toFixed(0)+'%'; bar.append(bi);
+    const mt = document.createElement('span'); mt.className = 'mmeta';
+    mt.textContent = m.done ? 'Done' : (g===1 ? 'Not yet' : `${v.toLocaleString('en')} / ${g.toLocaleString('en')}`);
+    li.append(tx, rw, bar, mt); el.append(li);
+  }
+}
 
 // ---------- garage: pick one of four trucks ----------
 const UI_COLOR = {blaze:'#ff5a1f', bulldog:'#a3b862', shark:'#3d95f0', howler:'#b06bff'};
@@ -1614,18 +1826,78 @@ TRUCKS.forEach(t=>{
   const img = document.createElement('img'); img.alt = ''; img.src = thumbs[t.id];
   const nm = document.createElement('b'); nm.textContent = t.name;
   const tg = document.createElement('small'); tg.textContent = t.tag;
-  bt.append(img, nm, tg);
+  const pr = document.createElement('span'); pr.className = 'price';
+  const lb = document.createElement('span'); lb.className = 'lockbadge'; lb.textContent = 'LOCKED';
+  bt.append(img, nm, tg, pr, lb);
   bt.addEventListener('click', ()=>gSelect(t.id));
   $('cards').appendChild(bt); cardEls[t.id] = bt;
 });
-function gSelect(id){
+function refreshCards(){
+  TRUCKS.forEach(t=>{
+    const el = cardEls[t.id], own = ownsTruck(t.id);
+    el.classList.toggle('locked', !own);
+    el.querySelector('.lockbadge').hidden = own;
+    const pr = el.querySelector('.price'); pr.textContent = '';
+    if(own){ pr.textContent = t.id===truckId ? 'Driving' : 'Owned'; pr.style.color = 'var(--muted)'; }
+    else { const ci=document.createElement('span'); ci.className='coinico'; pr.append(ci, document.createTextNode(TRUCK_PRICE[t.id])); pr.style.color = ''; }
+    el.setAttribute('aria-label', `${t.name}, ${own ? 'owned' : 'locked, costs '+TRUCK_PRICE[t.id]+' coins'}`);
+  });
+}
+function refreshGarageButton(){
+  const ok = $('gOk'), own = ownsTruck(gSel), price = TRUCK_PRICE[gSel];
+  ok.disabled = false;
+  if(own){ ok.textContent = gMode==='start' ? 'Drive this truck' : 'Use this truck'; $('gNote').textContent = ''; }
+  else if(bank >= price){ ok.textContent = `Buy for ${price}`; $('gNote').textContent = `You have ${bank.toLocaleString('en')} coins`; }
+  else { ok.textContent = `Buy for ${price}`; ok.disabled = true; $('gNote').textContent = `${(price-bank).toLocaleString('en')} more coins needed`; }
+}
+function gSelect(id, quiet){
   gSel = id;
   const t = TRUCKS.find(x=>x.id===id);
   TRUCKS.forEach(o=>{ const on = o.id===id; cardEls[o.id].setAttribute('aria-checked', String(on)); cardEls[o.id].tabIndex = on ? 0 : -1; pRigs[o.id].rig.visible = on; });
   $('gName').textContent = t.name; $('gTag').textContent = t.tag; $('gDesc').textContent = t.desc;
+  $('gPerk').textContent = 'Perk · ' + TRUCK_PERK[id];
   $('gName').style.setProperty('--gc', UI_COLOR[id]);
   ttRing.material.color.set(UI_COLOR[id]);
-  sfx.select();
+  refreshGarageButton();
+  if(!quiet) sfx.select();
+}
+function renderUpgrades(){
+  const ul = $('ulist'); ul.textContent = '';
+  for(const p of POWERS){
+    const lvl = upgrades[p.id];
+    const li = document.createElement('li'); li.style.setProperty('--c', p.color);
+    const dot = document.createElement('i'); dot.className = 'dot';
+    const info = document.createElement('div');
+    const b = document.createElement('b'); b.textContent = p.name;
+    const sm = document.createElement('small');
+    sm.textContent = lvl < UPG_MAX ? `Lasts ${powerDur(p.id, lvl)} s → ${powerDur(p.id, lvl+1)} s` : `Lasts ${powerDur(p.id, lvl)} s · max level`;
+    const pips = document.createElement('span'); pips.className = 'pips';
+    for(let i=0;i<UPG_MAX;i++){ const pi = document.createElement('i'); if(i<lvl) pi.className = 'on'; pips.append(pi); }
+    info.append(b, sm, pips);
+    const btn = document.createElement('button'); btn.type = 'button'; btn.className = 'btn';
+    if(lvl >= UPG_MAX){ btn.textContent = 'Maxed'; btn.disabled = true; }
+    else {
+      const cost = UPG_COST[lvl];
+      const ci = document.createElement('span'); ci.className = 'coinico';
+      btn.append(document.createTextNode('Upgrade '), ci, document.createTextNode(String(cost)));
+      btn.disabled = bank < cost;
+      btn.setAttribute('aria-label', `Upgrade ${p.name} for ${cost} coins`);
+      btn.addEventListener('click', ()=>{
+        if(bank < cost || upgrades[p.id] >= UPG_MAX) return;
+        addBank(-cost); upgrades[p.id]++; SAVE.save('upgrades', upgrades);
+        sfx.power(p.id==='turbo' ? 'jump' : p.id);
+        renderUpgrades(); refreshGarageButton();
+        $('ulist').querySelectorAll('button')[POWERS.indexOf(p)]?.focus();
+      });
+    }
+    li.append(dot, info, btn); ul.append(li);
+  }
+}
+function showTab(which){
+  const trucks = which==='trucks';
+  $('tabTrucks').setAttribute('aria-selected', String(trucks)); $('tabUpgrades').setAttribute('aria-selected', String(!trucks));
+  $('paneTrucks').hidden = !trucks; $('paneUpgrades').hidden = trucks;
+  if(trucks) sizePreview(); else renderUpgrades();
 }
 function sizePreview(){
   const w = pCv.clientWidth || 600, h = pCv.clientHeight || 300;
@@ -1635,9 +1907,9 @@ function openGarage(mode){
   gMode = mode;
   $('menu').hidden = true; $('over').hidden = true;
   garageEl.hidden = false;
-  $('gOk').textContent = mode==='start' ? 'Drive this truck' : 'Use this truck';
-  sizePreview();
-  gSelect(truckId || gSel);
+  updateWallets(); refreshCards();
+  showTab('trucks');
+  gSelect(truckId || gSel, true);
   cardEls[gSel].focus({preventScroll:true});
 }
 function closeGarage(){
@@ -1646,6 +1918,13 @@ function closeGarage(){
   else { $('menu').hidden = false; updateMyTruck(); $('startBtn').focus(); }
 }
 function confirmGarage(){
+  if(!ownsTruck(gSel)){
+    const price = TRUCK_PRICE[gSel];
+    if(bank < price) return;
+    addBank(-price); owned.push(gSel); SAVE.save('owned', owned);
+    sfx.unlock(); refreshCards(); refreshGarageButton();
+    return;                                    // bought: the button now offers to drive it
+  }
   truckId = gSel; sfx.confirm();
   try{ localStorage.setItem('rc-rampage-truck', truckId); }catch(e){}
   setTruckModel(truckId); updateMyTruck();
@@ -1656,11 +1935,12 @@ function updateMyTruck(){
   const has = !!truckId;
   $('myTruck').hidden = !has;
   if(has){ const t = TRUCKS.find(x=>x.id===truckId); $('myTruckName').textContent = t.name; $('myTruckImg').src = thumbs[t.id]; }
+  updateWallets(); renderMissions($('mListMenu'));
 }
 function requestStart(){ if(truckId) startGame(); else { initAudio(); openGarage('start'); } }
 function cycleTruck(dir){ const i = TRUCKS.findIndex(t=>t.id===gSel); const n = TRUCKS[(i+dir+TRUCKS.length)%TRUCKS.length].id; gSelect(n); cardEls[n].focus({preventScroll:true}); }
 function renderGarage(dt){
-  if(garageEl.hidden) return;
+  if(garageEl.hidden || $('paneTrucks').hidden) return;
   gAngle += dt*0.7;
   const r = pRigs[gSel]; r.rig.rotation.y = gAngle;
   r.antenna.rotation.z = Math.sin(gAngle*3)*0.08;
@@ -1669,16 +1949,21 @@ function renderGarage(dt){
 window.addEventListener('resize', ()=>{ if(!garageEl.hidden) sizePreview(); });
 $('gOk').addEventListener('click', confirmGarage);
 $('gBack').addEventListener('click', closeGarage);
+$('gBack2').addEventListener('click', closeGarage);
+$('tabTrucks').addEventListener('click', ()=>showTab('trucks'));
+$('tabUpgrades').addEventListener('click', ()=>showTab('upgrades'));
 $('changeBtn').addEventListener('click', ()=>openGarage('menu'));
 $('overChangeBtn').addEventListener('click', ()=>openGarage('over'));
+fillMissions();
 updateMyTruck();
 
 // ---------- input ----------
 window.addEventListener('keydown', e=>{
   const k = e.key;
   if(!garageEl.hidden){
-    if(k==='ArrowLeft' || k==='ArrowUp'){ cycleTruck(-1); e.preventDefault(); }
-    else if(k==='ArrowRight' || k==='ArrowDown'){ cycleTruck(1); e.preventDefault(); }
+    const onTrucks = !$('paneTrucks').hidden;
+    if(onTrucks && (k==='ArrowLeft' || k==='ArrowUp')){ cycleTruck(-1); e.preventDefault(); }
+    else if(onTrucks && (k==='ArrowRight' || k==='ArrowDown')){ cycleTruck(1); e.preventDefault(); }
     else if(k==='Escape'){ closeGarage(); }
     return;
   }
