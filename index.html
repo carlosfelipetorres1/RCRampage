@@ -39,6 +39,11 @@ body{background:#1a1d26;color:var(--text);font-family:var(--f-ui);-webkit-user-s
 /* HUD */
 .hud{position:fixed;top:calc(env(safe-area-inset-top,0px) + 12px);left:max(16px, env(safe-area-inset-left,0px));display:flex;flex-direction:column;gap:8px;align-items:flex-start;pointer-events:none;z-index:5}
 .next{margin-top:4px;padding-top:4px;border-top:1px dashed rgba(28,37,17,.35);font-size:10px;font-weight:700;letter-spacing:.1em}
+.combo{display:grid;grid-template-columns:auto 1fr;align-items:center;gap:2px 8px;background:var(--plastic);border:1px solid var(--edge);border-left:4px solid var(--hazard);border-radius:10px;padding:4px 10px 6px 8px;min-width:150px;box-shadow:0 6px 18px rgba(0,0,0,.3)}
+.combo b{font-family:var(--f-display);font-weight:400;font-size:24px;line-height:1;color:var(--hazard)}
+.combo span{font-size:11px;font-weight:700;letter-spacing:.14em}
+.combo .cbar{grid-column:1/-1;height:4px;border-radius:2px;background:var(--plastic-2);overflow:hidden}
+.combo .cbar i{display:block;height:100%;background:var(--hazard)}
 .chips{display:flex;flex-direction:column;gap:6px}
 .chip{display:grid;grid-template-columns:auto 1fr;align-items:center;gap:4px 8px;background:var(--plastic);border:1px solid var(--edge);border-left:4px solid var(--c);border-radius:10px;padding:5px 10px 6px 8px;min-width:150px;font-size:11px;font-weight:700;letter-spacing:.08em;box-shadow:0 6px 18px rgba(0,0,0,.3)}
 .chip .key{grid-column:1/-1;color:var(--muted);font-weight:600;letter-spacing:.02em;font-size:10px}
@@ -195,6 +200,7 @@ kbd{font-family:var(--f-ui);font-weight:700;font-size:11px;background:var(--plas
     </div>
     <div class="next" id="next">NEXT POWER ▸ SUPER JUMP @ 250</div>
   </div></div>
+  <div class="combo" id="comboBox" hidden><b id="comboMult">×2</b><span>COMBO</span><span class="cbar"><i id="comboBar"></i></span></div>
   <div class="chips">
     <div class="chip" id="chip-jump" style="--c:var(--p-jump)" hidden><span>SUPER JUMP</span><span></span><span class="key">↑ / W / Space · swipe up</span><span class="bar"><i></i></span></div>
     <div class="chip" id="chip-magnet" style="--c:var(--p-magnet)" hidden><span>COIN MAGNET</span><span></span><span class="bar"><i></i></span></div>
@@ -243,8 +249,10 @@ kbd{font-family:var(--f-ui);font-weight:700;font-size:11px;background:var(--plas
     </ul>
     <div class="keys">
       <span><kbd>←</kbd> <kbd>→</kbd> or <kbd>A</kbd> <kbd>D</kbd> change lane</span>
-      <span><kbd>↑</kbd> <kbd>W</kbd> <kbd>Space</kbd> jump (with Super Jump)</span>
-      <span>Phone: swipe or tap a side</span>
+      <span><kbd>↑</kbd> <kbd>W</kbd> <kbd>Space</kbd> jump (with Super Jump) · in the air: barrel roll</span>
+      <span><kbd>↓</kbd> <kbd>S</kbd> in the air: backflip (land it or crash!)</span>
+      <span>Stunts and near misses in a row build a ×2–×5 combo</span>
+      <span>Phone: swipe or tap a side · swipe up/down in the air for tricks</span>
       <span><kbd>P</kbd> pause · <kbd>M</kbd> music · <kbd>N</kbd> sound effects</span>
     </div>
     </details>
@@ -359,7 +367,7 @@ scene.fog = new THREE.Fog(0xf3c39a, 45, 150);
 const camera = new THREE.PerspectiveCamera(62, 1, 0.1, 400);
 let baseFov = 62, portrait = false;
 
-scene.add(new THREE.HemisphereLight(0xe6eeff, 0x7a6650, 1.25));
+const hemi = new THREE.HemisphereLight(0xe6eeff, 0x7a6650, 1.25); scene.add(hemi);
 const sun = new THREE.DirectionalLight(0xffe0b5, 1.6);
 sun.castShadow = true;
 sun.shadow.mapSize.set(1024,1024);
@@ -745,7 +753,7 @@ const CAR_COLORS = ['#2f6fdb','#e8e4da','#2b2d33','#c7372f','#3a8c5c','#8a95a5',
 
 function makeCar(kind){
   const g = new THREE.Group(), wheels=[];
-  const body = kind==='taxi' ? mat('#f2b705',{roughness:0.4}) : mat(pick(CAR_COLORS),{roughness:0.35,metalness:0.3});
+  const body = kind==='taxi' ? mat('#f2b705',{roughness:0.4}) : kind==='police' ? mat('#16181d',{roughness:0.35,metalness:0.3}) : mat(pick(CAR_COLORS),{roughness:0.35,metalness:0.3});
   let L,W,H;
   if(kind==='van'){
     L=5; W=1.95; H=2.1;
@@ -759,14 +767,20 @@ function makeCar(kind){
     ob(g,W-0.16,0.45,2.2,glassMat,0,1.175,0.25);
     ob(g,W-0.12,0.05,2.0,body,0,1.425,0.25);
     if(kind==='taxi') ob(g,0.6,0.16,0.26,mat('#fff8e0',{emissive:'#ffcc55',emissiveIntensity:0.5}),0,1.53,0.25);
+    if(kind==='police'){ ob(g,W+0.02,0.32,2.3,mat('#f4f1ea',{roughness:0.4}),0,0.72,0.1); ob(g,W-0.1,0.05,2.0,mat('#f4f1ea',{roughness:0.4}),0,1.43,0.25); }
   }
+  let siren = null;
+  if(kind==='police'){ ob(g,1.1,0.1,0.3,darkMat,0,1.5,0.25); siren = [ob(g,0.5,0.14,0.28,sirenRed,-0.28,1.6,0.25), ob(g,0.5,0.14,0.28,sirenBlue,0.28,1.6,0.25)]; }
   const ty = kind==='van' ? 1.0 : 0.82;
   ob(g,0.32,0.14,0.05,tailMat,-(W/2-0.25),ty,L/2+0.01);
   ob(g,0.32,0.14,0.05,tailMat,(W/2-0.25),ty,L/2+0.01);
   ob(g,W+0.04,0.16,0.12,darkMat,0,0.4,L/2);
   ob(g,0.5,0.14,0.02,mat('#f4f1ea'),0,0.6,L/2+0.02);
   for(const x of [-(W/2-0.06),(W/2-0.06)]) for(const z of [-(L/2-0.85),(L/2-0.85)]) addWheel(g,x,z,wheels);
-  return {g, wheels, zones:[{x:0,hw:W/2,z0:L/2,z1:-L/2,h:H,kind:'solid'}], L, H};
+  const blink = {l:[], r:[]};
+  for(const zz of [L/2+0.015, -L/2-0.015]){ blink.l.push(ob(g,0.16,0.1,0.04,blinkMat,-(W/2-0.06),ty+0.14,zz)); blink.r.push(ob(g,0.16,0.1,0.04,blinkMat,(W/2-0.06),ty+0.14,zz)); }
+  blink.l.concat(blink.r).forEach(m=>{ m.visible=false; m.castShadow=false; });
+  return {g, wheels, blink, siren, vehicle:true, zones:[{x:0,hw:W/2,z0:L/2,z1:-L/2,h:H,kind:'solid'}], L, H};
 }
 
 function makeRampTrailer(){
@@ -788,7 +802,7 @@ function makeRampTrailer(){
   ob(g,0.3,0.12,0.5,darkMat,0,0.55,-3.4);
   ob(g,0.32,0.14,0.05,tailMat,-0.75,0.92,-3.59); ob(g,0.32,0.14,0.05,tailMat,0.75,0.92,-3.59);
   for(const z of [-4.6,-8.0]) for(const x of [-0.95,0.95]) addWheel(g,x,z,wheels);
-  return {g, wheels, zones:[
+  return {g, wheels, vehicle:true, zones:[
     {x:0,hw:1.1,z0:5.2,z1:3.0,h:0.9,kind:'ramp'},
     {x:0,hw:1.15,z0:3.0,z1:-3.6,h:0.9,kind:'solid'},
     {x:0,hw:1.0,z0:-3.6,z1:-9.0,h:1.6,kind:'solid'},
@@ -818,11 +832,297 @@ function addObstacle(o, lane, z){
   o.g.position.set(LANES[lane],0,z); scene.add(o.g);
   o.lane=lane; o.x=LANES[lane]; o.z=z;
   o.back = Math.min(...o.zones.map(zn=>zn.z1));
+  o.front = Math.max(...o.zones.map(zn=>zn.z0));
+  o.top = Math.max(...o.zones.map(zn=>zn.h));
   obstacles.push(o); return o;
 }
 function disposeGroup(g){
   g.traverse(m=>{ if(m.isMesh && m.geometry && !m.geometry.userData.shared) m.geometry.dispose(); });
   scene.remove(g);
+}
+
+// ---------- scenario-specific obstacles, moving traffic and events ----------
+[unitBox, unitPlane, prismGeo, hayGeo].forEach(g=>{ g.userData.shared = true; });
+const blinkMat = new THREE.MeshBasicMaterial({color:'#ffae1a'});
+const sirenRed = new THREE.MeshBasicMaterial({color:'#ff2a2a'});
+const sirenBlue = new THREE.MeshBasicMaterial({color:'#2a6bff'});
+// which scenery a given spot on the road belongs to (scenery changes roll in from the horizon)
+function themeAt(z){ let t = playerTheme; for(const m of zoneMarks){ if(m.z >= z) t = m.theme; } return t; }
+
+const bigWheelGeo = new THREE.CylinderGeometry(0.85,0.85,0.5,16); bigWheelGeo.rotateZ(Math.PI/2); bigWheelGeo.userData.shared = true;
+const smallWheelGeo = new THREE.CylinderGeometry(0.45,0.45,0.32,12); smallWheelGeo.rotateZ(Math.PI/2); smallWheelGeo.userData.shared = true;
+const pipeGeo = new THREE.CylinderGeometry(0.06,0.06,0.9,8); pipeGeo.userData.shared = true;
+function makeTractor(){
+  const g = new THREE.Group(), wheels = [];
+  const green = mat('#3f8f3a',{roughness:0.5}), yel = mat('#f2c21a',{roughness:0.5});
+  // hay wagon, closest to the player: a flat roof of bales you can ride on
+  ob(g,2.3,0.25,6.0,mat('#7a5a3c',{roughness:0.9}),0,0.78,3.5);
+  for(const x of [-0.58,0.58]) for(let i=0;i<4;i++) box(g,hayMat,1.1,1.0,1.4,x,1.4,5.8-i*1.5);
+  for(const z of [5.4,1.6]) for(const x of [-1.0,1.0]) addWheel(g,x,z,wheels);
+  ob(g,0.15,0.12,1.0,darkMat,0,0.6,0.1);
+  // the tractor itself
+  ob(g,1.4,1.0,2.8,green,0,1.05,-3.4);
+  ob(g,1.9,0.5,1.8,green,0,1.3,-1.2);
+  ob(g,1.8,1.0,1.6,glassMat,0,2.05,-1.2);
+  ob(g,2.0,0.1,1.9,yel,0,2.6,-1.2);
+  for(const x of [-1.05,1.05]){ const w=new THREE.Mesh(bigWheelGeo,tireMat); w.position.set(x,0.85,-1.1); w.castShadow=true; g.add(w); wheels.push(w);
+    const h=new THREE.Mesh(smallWheelGeo,yel); h.scale.set(1.62,0.95,0.95); h.position.set(x*1.02,0.85,-1.1); g.add(h); }
+  for(const x of [-0.8,0.8]){ const w=new THREE.Mesh(smallWheelGeo,tireMat); w.position.set(x,0.45,-4.2); w.castShadow=true; g.add(w); wheels.push(w); }
+  const p = new THREE.Mesh(pipeGeo,darkMat); p.position.set(0.45,1.95,-3.9); g.add(p);
+  return {g, wheels, H:1.9, vehicle:true, long:true, zones:[
+    {x:0,hw:1.15,z0:6.5,z1:0.4,h:1.9,kind:'solid'},
+    {x:0,hw:1.3,z0:0.4,z1:-4.9,h:2.6,kind:'solid'},
+  ]};
+}
+function makeBus(){
+  const g = new THREE.Group(), wheels = [];
+  const L = 10.5, W = 2.3, H = 2.8, yel = mat('#f2b705',{roughness:0.45});
+  ob(g,W,2.3,L,yel,0,1.6,0);
+  ob(g,W-0.1,0.08,L-0.2,mat('#e8a800',{roughness:0.5}),0,2.79,0);
+  ob(g,W+0.02,0.1,L,darkMat,0,1.35,0);
+  ob(g,W+0.03,0.62,L-2.6,glassMat,0,2.08,-0.3);
+  ob(g,W-0.7,0.65,0.04,glassMat,0,2.05,L/2+0.01);
+  ob(g,W-0.2,0.7,0.06,glassMat,0,2.0,-L/2-0.02);
+  ob(g,0.3,0.16,0.05,tailMat,-(W/2-0.25),1.0,L/2+0.01); ob(g,0.3,0.16,0.05,tailMat,(W/2-0.25),1.0,L/2+0.01);
+  const stop = new THREE.Mesh(new THREE.CylinderGeometry(0.28,0.28,0.04,8), mat('#d8321f')); stop.rotation.z = Math.PI/2; stop.position.set(-W/2-0.06,1.9,-L/2+2); g.add(stop);
+  for(const x of [-(W/2-0.12),(W/2-0.12)]) for(const z of [-(L/2-1.8),(L/2-1.9)]) addWheel(g,x,z,wheels);
+  return {g, wheels, H, vehicle:true, long:true, zones:[{x:0,hw:W/2,z0:L/2,z1:-L/2,h:H,kind:'solid'}]};
+}
+function makeCowObstacle(dir){
+  const g = new THREE.Group();
+  const cow = animalProtos.cow.clone(); cow.rotation.y = dir > 0 ? 0 : Math.PI; g.add(cow);
+  return {g, wheels:[], cow, zones:[{x:0,hw:0.85,z0:0.42,z1:-0.42,h:1.5,kind:'solid'}]};
+}
+function cowMove(o, dt){
+  if(o.z < -Math.max(40, speed*3.5)) return;        // starts crossing as you get close
+  o.x += o.dir*1.6*dt; o.g.position.x = o.x;
+  o.lane = clamp(Math.round(o.x/LANE_W)+1, 0, 2);
+  o.cow.position.y = Math.abs(Math.sin(o.x*3))*0.06;
+}
+function addCow(z, dir){
+  const o = makeCowObstacle(dir); addObstacle(o, 1, z);
+  o.dir = dir; o.x = -dir*rand(3,6.5); o.g.position.x = o.x; o.move = cowMove;
+  o.lane = clamp(Math.round(o.x/LANE_W)+1, 0, 2);
+  return o;
+}
+const binGeo = new THREE.CylinderGeometry(0.32,0.28,0.95,12); binGeo.userData.shared = true;
+function placeBins(l, z){
+  const n = 2 + (Math.random()*2|0);
+  for(let i=0;i<n;i++){
+    const g = new THREE.Group();
+    const m = new THREE.Mesh(binGeo, mat(pick(['#2f6b3a','#3a4a5c','#2f5fa8','#5a5d66']),{roughness:0.6})); m.position.y = 0.48; m.castShadow = true; g.add(m);
+    box(g,darkMat,0.7,0.08,0.7,0,0.98,0);
+    const o = {g, wheels:[], zones:[{x:0,hw:0.38,z0:0.36,z1:-0.36,h:1.0,kind:'prop'}]};
+    addObstacle(o, l, z - i*1.7);
+    o.x = LANES[l] + rand(-0.9,0.9); o.g.position.x = o.x;
+  }
+}
+function makeJunkCar(){
+  const g = new THREE.Group();
+  const c = mat(pick(['#7a4a2a','#6b6f76','#8a3b2e','#4f6b45','#9a8a5a']),{roughness:0.95});
+  ob(g,1.9,0.5,4.2,c,0,0.3,0); ob(g,1.6,0.25,2.0,c,0,0.65,0.2); ob(g,1.62,0.14,0.9,glassMat,0,0.62,-0.6);
+  g.rotation.y = rand(-0.12,0.12);
+  return {g, wheels:[], zones:[{x:0,hw:0.95,z0:2.1,z1:-2.1,h:0.78,kind:'crush'}]};
+}
+const dirtRampGeo = (()=>{ const s=new THREE.Shape(); s.moveTo(3.4,0); s.lineTo(0,1.2); s.lineTo(-1.2,1.2); s.lineTo(-2.6,0); s.lineTo(3.4,0);
+  const g=new THREE.ExtrudeGeometry(s,{depth:2.4,bevelEnabled:false}); g.translate(0,0,-1.2); g.rotateY(-Math.PI/2); g.userData.shared = true; return g; })();
+function makeDirtRamp(){
+  const g = new THREE.Group();
+  const m = new THREE.Mesh(dirtRampGeo, dirtGround); m.castShadow = true; m.receiveShadow = true; g.add(m);
+  for(const x of [-1.25,1.25]){ const t=new THREE.Mesh(tireStackGeo,tireMat); t.rotation.y=Math.PI/2; t.position.set(x,0.42,2.6); g.add(t); }
+  return {g, wheels:[], zones:[
+    {x:0,hw:1.2,z0:3.4,z1:0,h:1.2,kind:'ramp'},
+    {x:0,hw:1.2,z0:0,z1:-1.2,h:1.2,kind:'solid'},
+  ]};
+}
+function makeTrainCrossing(){
+  const g = new THREE.Group(), lights = [];
+  const steel = mat('#8d939c',{metalness:0.7,roughness:0.35}), tie = mat('#5a4636',{roughness:1});
+  for(const rz of [-0.72,0.72]) box(g,steel,26,0.12,0.1,0,0.06,rz,false);
+  for(let x=-12;x<=12;x+=1.2) box(g,tie,0.25,0.06,2.4,x,0.03,0,false);
+  for(const s of [-1,1]){
+    box(g,postMat,0.12,3.2,0.12,s*5.8,1.6,2.2);
+    const a=box(g,mat('#f4f1ea'),1.4,0.18,0.06,s*5.8,2.95,2.25,false); a.rotation.z=0.6;
+    const b=box(g,mat('#f4f1ea'),1.4,0.18,0.06,s*5.8,2.95,2.25,false); b.rotation.z=-0.6;
+    for(const dx of [-0.25,0.25]) lights.push(box(g,basic('#ff2a1a'),0.22,0.22,0.08,s*5.8+dx,2.3,2.28,false));
+  }
+  const zones = [{x:0,hw:6.5,z0:1.5,z1:-1.5,h:2.8,kind:'solid'}];
+  for(const l of [0,1,2]){
+    const r = new THREE.Mesh(new THREE.BoxGeometry(2.4,0.1,Math.hypot(3,1)), rampMat);
+    r.position.set(LANES[l],0.5,10.5); r.rotation.x = Math.atan2(1,3); r.castShadow = true; r.receiveShadow = true; g.add(r);
+    zones.push({x:LANES[l],hw:1.25,z0:12,z1:9,h:1.0,kind:'ramp',boost:11.5});
+  }
+  const train = new THREE.Group(); g.add(train);
+  const cols = ['#2f6fdb','#c7372f','#3a8c5c','#8a95a5','#7a4fb8'];
+  for(let i=0;i<6;i++){
+    const car = new THREE.Group();
+    const loco = i===5, c = loco ? mat('#ffc21a',{roughness:0.5}) : mat(pick(cols),{roughness:0.6});
+    box(car,c,12,2.3,2.6,0,1.55,0); box(car,darkMat,12.2,0.3,2.3,0,0.3,0);
+    box(car,mat('#2a2c31'),11,0.12,2.7,0,2.76,0,false);
+    if(loco){ box(car,glassMat,0.1,0.7,2.2,6.04,2.2,0,false); box(car,mat('#16181d'),1.6,0.6,2.0,4.6,3.1,0); }
+    car.position.x = -40 + i*13; train.add(car);
+  }
+  const o = {g, wheels:[], zones, train, lights, t:0};
+  o.move = (o, dt)=>{
+    for(const c of o.train.children){ c.position.x += 15*dt; if(c.position.x > 45) c.position.x -= 78; }
+    o.t += dt; const a = Math.floor(o.t*3)%2; o.lights.forEach((l,i)=>{ l.visible = (i%2)===a; });
+  };
+  return o;
+}
+function setLaneChange(o, target){ o.lc = {target, state:'wait', t:0, from:o.x}; o.move = laneChangeMove; }
+function laneChangeMove(o, dt){
+  const lc = o.lc;
+  if(lc.state==='done') return;
+  const side = LANES[lc.target] > o.x ? 'r' : 'l';
+  if(lc.state==='wait'){ if(o.z > -Math.max(35, speed*3.2)){ lc.state='blink'; lc.t=0; } return; }
+  lc.t += dt;
+  const on = Math.floor(lc.t*4)%2===0;
+  o.blink[side].forEach(m=>{ m.visible = on; });
+  if(lc.state==='blink' && lc.t > 1.0){ lc.state='move'; lc.t=0; lc.from=o.x; }
+  if(lc.state==='move'){
+    const k = Math.min(1, lc.t/1.2), e = k*k*(3-2*k), delta = LANES[lc.target]-lc.from;
+    o.x = lc.from + delta*e; o.g.position.x = o.x;
+    o.g.rotation.y = -Math.sign(delta)*0.16*Math.sin(k*Math.PI);
+    if(k > 0.5) o.lane = lc.target;
+    if(k >= 1){ lc.state='done'; o.g.rotation.y=0; o.blink.l.concat(o.blink.r).forEach(m=>{ m.visible=false; }); }
+  }
+}
+function sirenMove(o, dt){ o.st = (o.st||0)+dt; const a = Math.floor(o.st*6)%2===0; o.siren[0].visible = a; o.siren[1].visible = !a; }
+function placeVehicle(l, z, th, roofCoins, kind){
+  if(!kind){
+    if(th==='farm' && Math.random()<0.45) kind = 'tractor';
+    else if(th==='suburb' && Math.random()<0.35) kind = 'bus';
+  }
+  if(kind==='tractor' || kind==='bus'){
+    const o = kind==='tractor' ? makeTractor() : makeBus(); addObstacle(o, l, z);
+    if(roofCoins) for(let i=-1;i<=1;i++) addCoin(LANES[l], o.H+0.45, z+(kind==='tractor'?3.5:0)+i*1.6);
+    return o;
+  }
+  return placeCar(l, z, roofCoins, kind);
+}
+function bashProp(o){
+  if(o.fling) return;
+  o.zones = [];
+  o.fling = {vy:rand(5,8), vx:rand(-4,4), rx:rand(-8,8), rz:rand(-8,8)};
+  award(10, 'BIN BASH'); play('land', 0.6, 1.5);
+  burst(o.x, 0.6, o.z, '#9aa3ad', 6, 2, 3, 0.5);
+}
+function crushCar(o){
+  if(o.squash !== undefined) return;
+  o.zones = []; o.squash = 0;
+  award(30, 'CRUSH'); if(run) run.crushed++;
+  play('smash', 0.45, 0.8); burst(o.x, 0.7, o.z, '#9a8a5a', 8, 2.5, 3, 0.5);
+}
+function spawnTrainCrossing(z){
+  const o = makeTrainCrossing(); addObstacle(o, 1, z);
+  const vy = 11.5;
+  for(let k=1;k<=9;k++){ const t=k*0.1; addCoin(0, 1.0+vy*t-0.5*G*t*t+0.4, z+9-speed*t); }
+  pop('TRAIN CROSSING! USE THE RAMPS', 'power', '#ffc21a');
+  return 62 + speed*1.0;
+}
+function spawnRoadblock(z){
+  const lanes = shuffle([0,1,2]), gap = lanes[0];
+  lanes.slice(1).forEach(l=>{
+    const c = placeCar(l, z+rand(-1,1), false, 'police');
+    c.g.rotation.y = (l < gap ? 1 : -1)*0.3; c.zones[0].hw = 1.2; c.zones[0].z0 = 2.5; c.zones[0].z1 = -2.5;
+    c.move = sirenMove;
+    for(const dx of [-1.1,1.1]){ const cn=new THREE.Mesh(coneGeo,coneMat); cn.position.set(dx,0.3,3.2); c.g.add(cn); }
+  });
+  coinLine(gap, z+6, 6);
+  pop('ROADBLOCK AHEAD!', 'power', '#3d95f0');
+  return 30 + speed*0.85;
+}
+
+// ---------- combos: stunts in quick succession raise a score multiplier ----------
+const combo = {n:0, t:0};
+const COMBO_WINDOW = 4;
+const comboMult = () => Math.min(5, 1 + Math.floor(combo.n/2));
+function award(points, label, quiet){
+  combo.n++; combo.t = COMBO_WINDOW;
+  const m = comboMult(), pts = points*m;
+  bonus += pts;
+  if(run) run.maxMult = Math.max(run.maxMult, m);
+  if(!quiet) pop(`${label} +${pts}`, m > 1 ? 'power' : '', m > 1 ? '#ffc21a' : '');
+}
+
+// ---------- air tricks ----------
+const TRICKS = {roll:{name:'BARREL ROLL', dur:0.45, pts:75}, flip:{name:'BACKFLIP', dur:0.55, pts:100}};
+function startTrick(type){
+  if(state!=='playing' || T.grounded || T.trick || T.onRamp) return false;
+  T.trick = {type, t:0, dur:TRICKS[type].dur};
+  play('hop', 0.45, 1.7);
+  return true;
+}
+function trickPose(){
+  // rotate around the truck's middle, not its wheels
+  if(!T.trick) return;
+  const a = Math.min(1, T.trick.t/T.trick.dur)*Math.PI*2, c = 0.45;
+  if(T.trick.type==='roll'){ truck.rotation.z = a; truck.position.x += c*Math.sin(a); truck.position.y += c*(1-Math.cos(a)); }
+  else { truck.rotation.x += a; truck.position.y += c*(1-Math.cos(a)); truck.position.z -= c*Math.sin(a); }
+}
+
+// ---------- day / night cycle and weather ----------
+const SKIES = {
+  day:    {top:'#3f6fc4', mid:'#86b4e8', low:'#e9dcc0', glow:[255,250,230,0.55], gsize:14, fog:'#dcd4c2', hemi:1.35, sun:1.7, sunCol:'#fff3df', night:0},
+  sunset: {top:'#2e4687', mid:'#d48d86', low:'#f3c39a', glow:[255,236,190,0.95], gsize:16, fog:'#f3c39a', hemi:1.25, sun:1.6, sunCol:'#ffe0b5', night:0},
+  night:  {top:'#04061a', mid:'#10173a', low:'#262c58', glow:[225,232,255,0.7],  gsize:5,  fog:'#1c2244', hemi:0.42, sun:0.3, sunCol:'#9fb4ff', night:1},
+};
+const CYCLE = [[0,'day'],[0.30,'day'],[0.40,'sunset'],[0.50,'night'],[0.80,'night'],[0.90,'sunset'],[1,'day']];
+const CYCLE_SECONDS = 210;
+let dayT = 0.36, skyCssAt = 0;
+const _c1 = new THREE.Color(), _c2 = new THREE.Color();
+const lerpHex = (a,b,k) => '#'+_c1.set(a).lerp(_c2.set(b),k).getHexString();
+function skyAt(t){
+  let i = 0; while(i < CYCLE.length-2 && t > CYCLE[i+1][0]) i++;
+  const [t0,a] = CYCLE[i], [t1,b] = CYCLE[i+1];
+  const k = t1 > t0 ? clamp((t-t0)/(t1-t0),0,1) : 0, A = SKIES[a], B = SKIES[b], L = (x,y)=>x+(y-x)*k;
+  return {top:lerpHex(A.top,B.top,k), mid:lerpHex(A.mid,B.mid,k), low:lerpHex(A.low,B.low,k),
+    glow:A.glow.map((v,j)=>L(v,B.glow[j])), gsize:L(A.gsize,B.gsize), fog:lerpHex(A.fog,B.fog,k),
+    hemi:L(A.hemi,B.hemi), sun:L(A.sun,B.sun), sunCol:lerpHex(A.sunCol,B.sunCol,k), night:L(A.night,B.night)};
+}
+const headlight = new THREE.SpotLight(0xfff2d0, 0, 34, 0.5, 0.6, 1.2);
+headlight.position.set(0,0.6,-0.4); headlight.target.position.set(0,0,-12);
+truck.add(headlight); truck.add(headlight.target);
+const weather = {rain:0, target:0, until:0};
+const RAIN_N = 1100, rainPos = new Float32Array(RAIN_N*6);
+const rainGeo = new THREE.BufferGeometry(); rainGeo.setAttribute('position', new THREE.BufferAttribute(rainPos,3));
+const rainMat = new THREE.LineBasicMaterial({color:'#e4eefb', transparent:true, opacity:0});
+const rainLines = new THREE.LineSegments(rainGeo, rainMat); rainLines.frustumCulled = false; rainLines.visible = false; scene.add(rainLines);
+function resetDrop(i, top){
+  const x = rand(-16,16), y = top ? rand(10,16) : rand(0,16), z = rand(-45,8);
+  rainPos.set([x,y,z, x+0.05,y+0.9,z-0.3], i*6);
+}
+for(let i=0;i<RAIN_N;i++) resetDrop(i, false);
+function startRain(){ weather.target = 1; weather.until = gameTime + rand(30,45); pop("IT'S STARTING TO RAIN", 'power', '#8fb8ff'); }
+function updateSkyAndWeather(dt, d){
+  dayT = (dayT + dt/CYCLE_SECONDS) % 1;
+  if(weather.target && gameTime > weather.until) weather.target = 0;
+  weather.rain += (weather.target - weather.rain)*Math.min(1, dt*0.4);
+  const s = skyAt(dayT), wet = weather.rain;
+  scene.fog.color.set(lerpHex(s.fog, '#6d7686', wet*0.6));
+  scene.fog.near = 45 - wet*25; scene.fog.far = 150 - wet*55;
+  hemi.intensity = s.hemi*(1 - wet*0.3); sun.intensity = s.sun*(1 - wet*0.5); sun.color.set(s.sunCol);
+  headlight.intensity = Math.max(s.night, wet*0.5)*2.2;
+  lampHeadMat.emissiveIntensity = 0.8 + s.night*2.2;
+  tailMat.emissiveIntensity = 0.9 + s.night*1.5;
+  const now = performance.now();
+  if(now - skyCssAt > 200){
+    skyCssAt = now;
+    const g = s.glow, top = lerpHex(s.top,'#454c58',wet*0.9), mid = lerpHex(s.mid,'#646b78',wet*0.9), low = lerpHex(s.low,'#868c96',wet*0.85);
+    stage.style.background = `radial-gradient(circle at 50% 36%, rgba(${g[0]|0},${g[1]|0},${g[2]|0},${(g[3]*(1-wet)).toFixed(2)}) 0, rgba(${g[0]|0},${g[1]|0},${g[2]|0},${(g[3]*0.5*(1-wet)).toFixed(2)}) ${(s.gsize*0.32).toFixed(1)}%, rgba(${g[0]|0},${g[1]|0},${g[2]|0},0) ${s.gsize.toFixed(1)}%), linear-gradient(to bottom, ${top} 0%, ${mid} 22%, ${low} 37%, ${low} 100%)`;
+  }
+  rainLines.visible = wet > 0.02;
+  if(rainLines.visible){
+    rainMat.opacity = 0.85*wet;
+    for(let i=0;i<RAIN_N;i++){
+      const o = i*6; const dy = 24*dt, dz = d*0.9 + 2*dt;
+      rainPos[o+1] -= dy; rainPos[o+4] -= dy; rainPos[o+2] += dz; rainPos[o+5] += dz;
+      if(rainPos[o+1] < 0 || rainPos[o+2] > 8) resetDrop(i, true);
+    }
+    rainGeo.attributes.position.needsUpdate = true;
+    rainLines.position.x = T.x*0.7;
+  }
+  setRainSound(wet);
 }
 
 const coinGeo = new THREE.CylinderGeometry(0.32,0.32,0.08,22); coinGeo.rotateX(Math.PI/2);
@@ -861,7 +1161,8 @@ const soundData = {};
 for(const k in SOUND_FILES){ soundData[k] = fetch(SOUND_FILES[k]).then(r=>r.ok ? r.arrayBuffer() : null).catch(()=>null); }
 const buffers = {};
 let actx=null, master=null, sfxBus=null, musicBus=null, musicOut=null, fxOut=null, engineGain=null, engineFilter=null, engineSrc=null;
-let musicOff=false, sfxOff=false;
+let musicOff=false, sfxOff=false, rainGain=null;
+function setRainSound(w){ if(rainGain) rainGain.gain.setTargetAtTime(0.09*w, actx.currentTime, 0.3); }
 let musicNow = null, musicWanted = 'city', nitroSrc = null;
 try{
   const old = localStorage.getItem('rc-rampage-muted')==='1';      // the single mute button from earlier versions
@@ -881,6 +1182,13 @@ function initAudio(){
     musicBus = actx.createGain(); musicBus.gain.value = 0.32; musicBus.connect(musicOut);
     engineFilter = actx.createBiquadFilter(); engineFilter.type='lowpass'; engineFilter.frequency.value=1500; engineFilter.Q.value=0.5;
     engineGain = actx.createGain(); engineGain.gain.value = 0; engineFilter.connect(engineGain); engineGain.connect(fxOut);
+    // rain: filtered noise, only heard while it rains
+    const nb = actx.createBuffer(1, actx.sampleRate*2, actx.sampleRate), nd = nb.getChannelData(0);
+    for(let i=0;i<nd.length;i++) nd[i] = Math.random()*2-1;
+    const ns = actx.createBufferSource(); ns.buffer = nb; ns.loop = true;
+    const bp = actx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 1800; bp.Q.value = 0.6;
+    rainGain = actx.createGain(); rainGain.gain.value = 0;
+    ns.connect(bp); bp.connect(rainGain); rainGain.connect(fxOut); ns.start();
   }catch(e){ actx=null; return; }
   for(const k in soundData){
     soundData[k].then(ab=>ab && decode(ab.slice(0))).then(b=>{
@@ -957,6 +1265,7 @@ setMusicOff(musicOff); setSfxOff(sfxOff);
 // ---------- game state ----------
 let state = 'menu', prevState='menu';
 let speed = 8, dist = 0, coinsN = 0, bonus = 0, nextRow = 0, shake = 0, crashTimer = 0, overShown = true;
+let gameTime = 0, nextEventAt = 500, pendingEvent = null;
 let best = 0; try{ best = parseInt(localStorage.getItem('rc-rampage-best')||'0',10)||0; }catch(e){}
 const T = {lane:1, x:0, y:0, vy:0, grounded:true, air:0, onRoof:false, susp:0, suspV:0, spin:0, roll:0};
 const cam = {x:0, y:2.6};
@@ -1027,6 +1336,7 @@ function activatePower(id){
   burst(T.x, T.y+0.6, 0, p.color, 14, 2, 3, 0.6);
 }
 function superJump(){
+  if(state==='playing' && !T.grounded){ startTrick('roll'); return; }
   if(state!=='playing' || powers.jump<=0 || !T.grounded) return;
   T.vy = 9.8; T.grounded = false; T.air = 0; T.suspV = -1.2;
   if(run) run.superJumps++;
@@ -1036,7 +1346,7 @@ function smash(o){
   if(o.fling) return;
   o.zones = [];
   o.fling = {vy:rand(7,10), vx:(o.x>=T.x?1:-1)*rand(3,6), rx:rand(-5,5), rz:rand(-6,6)};
-  bonus += truckId==='howler' ? 100 : 50; shake = Math.max(shake, 0.35);
+  award(truckId==='howler' ? 100 : 50, 'SMASH'); shake = Math.max(shake, 0.35);
   if(run) run.smashes++;
   sfx.smash(); burst(o.x, 1, o.z, '#ffd34d', 12, 3, 5, 0.7); burst(o.x, 1, o.z, '#2a2c31', 10, 3, 4, 0.7);
 }
@@ -1070,14 +1380,28 @@ function placeCar(lane, z, roofCoins, kind){
 
 function spawnRow(z){
   const early = dist < 140;
-  const r = Math.random();
-  const type = early ? (r<0.72?'traffic':'coins') : (r<0.36?'traffic': r<0.62?'ramp': r<0.85?'works':'coins');
+  if(pendingEvent && !early){ const e = pendingEvent; pendingEvent = null; return e==='train' ? spawnTrainCrossing(z) : spawnRoadblock(z); }
+  const th = themeAt(z), r = Math.random();
+  let type;
+  if(early) type = r<0.72 ? 'traffic' : 'coins';
+  else if(th==='show')   type = r<0.30 ? 'crush' : r<0.48 ? 'ramp' : r<0.62 ? 'dirt' : r<0.85 ? 'traffic' : 'coins';
+  else if(th==='farm')   type = r<0.20 ? 'cows'  : r<0.45 ? 'traffic' : r<0.65 ? 'ramp' : r<0.84 ? 'works' : 'coins';
+  else if(th==='suburb') type = r<0.20 ? 'bins'  : r<0.47 ? 'traffic' : r<0.67 ? 'ramp' : r<0.84 ? 'works' : 'coins';
+  else                   type = r<0.38 ? 'traffic' : r<0.62 ? 'ramp' : r<0.84 ? 'works' : 'coins';
   const lanes = shuffle([0,1,2]);
   if(type==='traffic'){
     const n = early ? 1 : (Math.random()<0.5 ? 2 : 1);
-    lanes.slice(0,n).forEach(l=>placeCar(l, z+rand(-1.5,1.5), !early && Math.random()<0.25));
-    if(Math.random()<0.6) coinLine(lanes[n], z+7, 5);
-    return 18 + speed*0.85;
+    const placed = lanes.slice(0,n).map(l=>placeVehicle(l, z+rand(-1.5,1.5), th, !early && Math.random()<0.25));
+    const free = lanes.slice(n);
+    let coinLane = free[0];
+    // city drivers sometimes signal and switch into a free lane
+    if(th==='city' && !early && Math.random()<0.5){
+      const c = pick(placed), opts = free.filter(l=>Math.abs(l-c.lane)===1);
+      if(opts.length && c.blink){ const tgt = pick(opts); setLaneChange(c, tgt); if(coinLane===tgt) coinLane = c.lane; }
+    }
+    if(th==='suburb' && free.length > 1 && Math.random()<0.5) placeBins(free[1], z+rand(-3,3));
+    if(Math.random()<0.6) coinLine(coinLane, z+7, 5);
+    return 18 + speed*0.85 + (placed.some(p=>p.long) ? 8 : 0);
   }
   if(type==='ramp'){
     const L = lanes[0];
@@ -1101,6 +1425,35 @@ function spawnRow(z){
     if(n<3 && Math.random()<0.4) placeCar(lanes[n], z+rand(-2,2));
     return 22 + speed*0.85;
   }
+  if(type==='cows'){
+    const n = Math.random()<0.5 ? 1 : 2;
+    for(let i=0;i<n;i++) addCow(z - i*8, Math.random()<0.5 ? 1 : -1);
+    if(Math.random()<0.5) coinLine(lanes[0], z+9, 4);
+    return 24 + speed*0.85 + n*4;
+  }
+  if(type==='bins'){
+    const k = Math.random()<0.5 ? 1 : 2;
+    lanes.slice(0,k).forEach(l=>placeBins(l, z));
+    coinLine(lanes[2], z+6, 5);
+    return 16 + speed*0.7;
+  }
+  if(type==='crush'){
+    const nl = Math.random()<0.6 ? 1 : 2;
+    lanes.slice(0,nl).forEach(l=>{
+      for(let i=0;i<3;i++) addObstacle(makeJunkCar(), l, z - i*4.6);
+      for(let i=0;i<3;i++) addCoin(LANES[l], 1.45, z - i*4.6);
+    });
+    if(nl===1 && Math.random()<0.5) placeCar(lanes[1], z+rand(-2,2));
+    return 28 + speed*0.85;
+  }
+  if(type==='dirt'){
+    const withRamp = lanes.filter(()=>Math.random()<0.75);
+    if(!withRamp.length) withRamp.push(lanes[0]);
+    withRamp.forEach(l=>addObstacle(makeDirtRamp(), l, z));
+    const vy = launchVy(speed), cl = withRamp[0];
+    for(let k=1;k<=8;k++){ const t=k*0.09; addCoin(LANES[cl], 1.2+vy*t-0.5*G*t*t+0.4, z-speed*t); }
+    return 30 + speed*0.9;
+  }
   // coins: a weaving trail
   let l = lanes[0];
   for(let i=0;i<3;i++){ coinLine(l, z - i*9, 3); l = clamp(l + (Math.random()<0.5?-1:1), 0, 2); }
@@ -1121,7 +1474,9 @@ function clearWorld(){
 function startGame(){
   initAudio();
   clearWorld(); clearDeath(); newRun();
-  Object.assign(T,{lane:1,x:0,y:0,vy:0,grounded:true,air:0,onRoof:false,susp:0,suspV:0,spin:0,roll:0});
+  Object.assign(T,{lane:1,x:0,y:0,vy:0,grounded:true,air:0,onRoof:false,susp:0,suspV:0,spin:0,roll:0,trick:null,airTricks:[],prevLane:1,laneT:-9,onRamp:false});
+  combo.n = 0; combo.t = 0; gameTime = 0; nextEventAt = rand(380, 600); pendingEvent = null;
+  weather.target = 0; weather.rain = 0; dayT = 0.2;
   truck.rotation.set(0,0,0); tBody.rotation.set(0,0,0);
   dist=0; coinsN=0; bonus=0; speed=START_SPEED; shake=0;
   resetScenery(); duckMusic(1);
@@ -1365,6 +1720,7 @@ const DEATH_FX = {
 
 function crash(){
   state='over'; shake=0.7; overShown=false;
+  T.trick = null; T.airTricks = []; combo.n = 0; weather.target = 0;
   for(const k in powers) powers[k]=0;
   $('jumpBtn').hidden = true;
   T.grounded=false;
@@ -1401,12 +1757,20 @@ function toMenu(){
 }
 
 const popEl = $('popup');
-function pop(text, cls='', color=''){ popEl.className=''; popEl.textContent=text; popEl.style.setProperty('--pc', color||'#fff'); void popEl.offsetWidth; popEl.className='show '+cls; }
+let popFree = 0;
+function showPop(text, cls, color){ popEl.className=''; popEl.textContent=text; popEl.style.setProperty('--pc', color||'#fff'); void popEl.offsetWidth; popEl.className='show '+cls; }
+function pop(text, cls='', color=''){
+  // queue banners ~0.5 s apart; drop ones that would show too late to matter
+  const now = performance.now(), at = Math.max(now, popFree);
+  if(at - now > 1400) return;
+  popFree = at + 520;
+  if(at === now) showPop(text, cls, color); else setTimeout(()=>showPop(text, cls, color), at - now);
+}
 
 function steer(dir){
   if(state!=='playing') return;
   const nl = clamp(T.lane+dir,0,2);
-  if(nl!==T.lane){ T.lane=nl; }
+  if(nl!==T.lane){ T.prevLane = T.lane; T.laneT = gameTime; T.lane = nl; }
 }
 
 // ---------- physics ----------
@@ -1427,16 +1791,20 @@ function physics(dt){
         const lz = -o.z;                         // truck centre in obstacle space
         if(lz <= zn.z0 && lz >= zn.z1){
           const h = (zn.z0 - lz)/(zn.z0 - zn.z1) * zn.h;
-          if(T.y <= h + 0.35) ramp = {h};
+          if(T.y <= h + 0.35) ramp = {h, boost:zn.boost};
         }
       } else touching.push({zn,o});
     }
   }
   if(ramp) T.y = ramp.h;                       // ride the ramp surface before testing walls
-  const hitList = [];
+  const hitList = [], props = [], crushes = [];
   for(const {zn,o} of touching){
     if(zn.kind==='bump'){
       if(T.y < 0.2) bump = true;
+    } else if(zn.kind==='prop'){
+      if(T.y < zn.h) props.push(o);
+    } else if(zn.kind==='crush'){
+      if(T.y < zn.h + 0.05) crushes.push(o);
     } else {
       if(T.y >= zn.h - STEP){ if(zn.h > support){ support = zn.h; roof = zn.h > 1.2; } }
       else { hit = true; if(!hitList.includes(o)) hitList.push(o); }
@@ -1450,26 +1818,49 @@ function physics(dt){
     }
     else { crash(); return; }
   }
-  if(ramp){
-    T.y = ramp.h; T.vy = launchVy(speed); T.grounded = false; T.air = 0; T.onRamp = true;
+  props.forEach(bashProp);
+  if(crushes.length){
+    crushes.forEach(crushCar);
+    T.vy = Math.max(T.vy, 5); T.y = Math.max(T.y, 0.3); T.grounded = false; T.air = 0; T.suspV = -1.5;
     return;
   }
-  if(T.onRamp){ T.onRamp=false; sfx.jump(); if(run) run.ramps++; pop('AIR!'); burst(T.x,0.9,0,'#c9b79c',8,1.5,2); }
+  if(ramp){
+    T.y = ramp.h; T.vy = ramp.boost || launchVy(speed); T.grounded = false; T.air = 0; T.onRamp = true; T.trick = null;
+    return;
+  }
+  if(T.onRamp){ T.onRamp=false; sfx.jump(); if(run) run.ramps++; award(10, 'AIR!'); burst(T.x,0.9,0,'#c9b79c',8,1.5,2); }
+  if(T.trick){
+    T.trick.t += dt;
+    if(T.trick.t >= T.trick.dur){ T.airTricks.push(T.trick.type); T.trick = null; }
+  }
   if(bump && T.grounded){
-    T.vy = bumpVy(speed); T.grounded=false; T.air=0; sfx.hop(); if(run) run.bumps++; burst(T.x,0.2,0,'#ffc21a',6,1.2,2);
+    T.vy = bumpVy(speed); T.grounded=false; T.air=0; sfx.hop(); if(run) run.bumps++; award(5, 'HOP', true); burst(T.x,0.2,0,'#ffc21a',6,1.2,2);
     return;
   }
   if(T.grounded){
     if(T.y > support + 0.02){ T.grounded=false; T.vy = 0; T.air = 0; }   // drove off an edge
     else T.y = support;
   } else if(T.y <= support && T.vy <= 0){
+    // a trick that isn't finished when the wheels touch down is a crash
+    if(T.trick){
+      const p = T.trick.t/T.trick.dur;
+      if(p > 0.15 && p < 0.85){ T.trick = null; T.airTricks = []; crash(); return; }
+      if(p >= 0.85) T.airTricks.push(T.trick.type);
+      T.trick = null;
+    }
     const impact = -T.vy;
     T.y = support; T.grounded = true;
     if(T.air > 0.3){
       T.suspV = -Math.min(3, impact*0.35); sfx.land(); burst(T.x,support+0.05,0,'#b8ad9c',10,1.8,1.6);
-      if(T.air > 0.8){ bonus += 25; pop('BIG AIR +25'); if(run) run.bigAir++; }
-      if(roof){ bonus += 15; if(run) run.roofs++; setTimeout(()=>{ if(state==='playing') pop('ROOF RIDE +15'); }, T.air>0.8?650:0); }
+      if(T.airTricks.length){
+        const pts = T.airTricks.reduce((a,k)=>a+TRICKS[k].pts, 0);
+        award(pts, T.airTricks.map(k=>TRICKS[k].name).join(' + '));
+        if(run) run.tricks += T.airTricks.length;
+      }
+      if(T.air > 0.8){ award(25, 'BIG AIR', T.airTricks.length>0); if(run) run.bigAir++; }
+      if(roof){ award(15, 'ROOF RIDE'); if(run) run.roofs++; }
     }
+    T.airTricks = [];
     T.vy = 0; T.air = 0;
   }
   T.onRoof = T.grounded && support > 1.2;
@@ -1487,6 +1878,15 @@ function update(dt){
   const d = speed*dt;
 
   if(state==='playing'){
+    gameTime += dt;
+    if(combo.n > 0){ combo.t -= dt; if(combo.t <= 0) combo.n = 0; }
+    // random events: rain, a train crossing or a police roadblock
+    if(dist >= nextEventAt){
+      nextEventAt = dist + rand(550, 900);
+      const opts = ['train','police']; if(!weather.target) opts.push('rain','rain');
+      const e = pick(opts);
+      if(e==='rain') startRain(); else pendingEvent = e;
+    }
     dist += d; nextRow -= d;
     if(nextRow <= 0){ const zr = SPAWN_Z + nextRow, gap = spawnRow(zr); nextRow += gap; maybePower(zr - gap*0.5); }
     // unlock new powers as the score climbs
@@ -1508,6 +1908,15 @@ function update(dt){
   for(let i=obstacles.length-1;i>=0;i--){
     const o = obstacles[i]; o.z += d; o.g.position.z = o.z;
     for(const w of o.wheels) w.rotation.x -= d*0.35/0.33;
+    if(o.move && !o.fling) o.move(o, dt);
+    if(o.squash !== undefined && o.squash < 1){ o.squash = Math.min(1, o.squash + dt*8); o.g.scale.y = 1 - 0.55*o.squash; }
+    // near miss: you were in this vehicle's lane and swerved out just before reaching it
+    if(state==='playing' && o.vehicle && !o.passed && o.z + o.front > -TRUCK_HL){
+      o.passed = true;
+      if(!o.fling && T.prevLane===o.lane && T.lane!==o.lane && gameTime - T.laneT < 0.9 && T.y < o.top - 0.3){
+        award(20, 'NEAR MISS'); if(run) run.nearMiss++;
+      }
+    }
     if(o.fling){
       const f = o.fling; f.vy -= G*dt;
       o.g.position.y += f.vy*dt; o.g.position.x += f.vx*dt;
@@ -1567,6 +1976,7 @@ function update(dt){
     truck.rotation.y = -dx*0.12;
     truck.rotation.x = T.grounded ? 0 : clamp(T.vy*0.03,-0.3,0.35);
     truck.rotation.z = 0;
+    trickPose();
   }
   const t = performance.now()/1000;
   tBody.position.y = T.susp + (T.grounded ? Math.sin(t*28)*0.006*Math.min(1,speed/10) : 0.03);
@@ -1604,6 +2014,7 @@ function update(dt){
   if(Math.abs(camera.fov-fov)>0.05){ camera.fov=fov; camera.updateProjectionMatrix(); }
 
   sun.position.set(T.x-6, 14, -12); sun.target.position.set(T.x, 0, -4);
+  updateSkyAndWeather(dt, d);
 
   // HUD
   if(state==='playing' || state==='over'){
@@ -1619,10 +2030,14 @@ function update(dt){
       if(left > 0){ chip.bar.style.width = (left/(powersMax[p.id]||p.dur)*100).toFixed(1)+'%'; chip.el.classList.toggle('low', left < 2); }
     }
     jumpBtn.hidden = !(state==='playing' && powers.jump > 0 && coarse);
+    const m = comboMult(), showCombo = state==='playing' && m > 1;
+    comboBox.hidden = !showCombo;
+    if(showCombo){ comboMultEl.textContent = '×'+m; comboBar.style.width = (combo.t/COMBO_WINDOW*100).toFixed(1)+'%'; }
   }
 }
 const chips = Object.fromEntries(POWERS.map(p=>{ const el=$('chip-'+p.id); return [p.id,{el, bar:el.querySelector('.bar i')}]; }));
 const jumpBtn = $('jumpBtn');
+const comboBox = $('comboBox'), comboMultEl = $('comboMult'), comboBar = $('comboBar');
 const coarse = window.matchMedia ? window.matchMedia('(pointer: coarse)').matches : false;
 
 // ---------- loop ----------
@@ -1701,6 +2116,10 @@ const MISSION_TYPES = [
   {type:'theme',      levels:['farm','suburb','show'], reward:[80,80,100], text:t=>`Reach the ${THEME_NAMES[t]} in one run`, pickAny:true},
   {type:'themeCoins', levels:[['farm',15],['suburb',15],['show',15]], reward:[90,90,100], text:g=>`Collect ${g[1]} coins in the ${THEME_NAMES[g[0]]} in one run`, pickAny:true},
   {type:'crash',      levels:[1],             reward:[75],         text:()=>'Discover a crash style you haven’t seen'},
+  {type:'nearMiss',   levels:[3,6,10],        reward:[60,110,180], text:n=>`Get ${n} near misses in one run`},
+  {type:'tricks',     levels:[2,4,8],         reward:[70,120,200], text:n=>`Land ${n} air tricks in one run`},
+  {type:'combo',      levels:[3,4,5],         reward:[60,110,180], text:n=>`Reach a ×${n} combo`},
+  {type:'crushed',    levels:[3,6,10],        reward:[60,110,180], text:n=>`Crush ${n} junk cars at the truck show in one run`},
 ];
 const missionDef = m => MISSION_TYPES.find(t=>t.type===m.type);
 let missions = SAVE.load('missions', []);
@@ -1739,12 +2158,16 @@ function missionValue(m){
     case 'theme': return run.themes.has(m.goal) ? 1 : 0;
     case 'themeCoins': return run.themeCoins[m.goal[0]] || 0;
     case 'crash': return run.newCrash ? 1 : 0;
+    case 'nearMiss': return run.nearMiss;
+    case 'tricks': return run.tricks;
+    case 'combo': return run.maxMult;
+    case 'crushed': return run.crushed;
   }
   return 0;
 }
 function newRun(){
   fillMissions();
-  run = {roofs:0, ramps:0, bumps:0, powers:0, superJumps:0, smashes:0, bigAir:0, themes:new Set(['city']), themeCoins:{}, newCrash:false, finished:false};
+  run = {roofs:0, ramps:0, bumps:0, powers:0, superJumps:0, smashes:0, bigAir:0, nearMiss:0, tricks:0, maxMult:1, crushed:0, themes:new Set(['city']), themeCoins:{}, newCrash:false, finished:false};
 }
 let missionPopAt = 0;
 function checkMissions(){
@@ -1973,6 +2396,7 @@ window.addEventListener('keydown', e=>{
   else if(k==='m' || k==='M'){ initAudio(); setMusicOff(!musicOff); }
   else if(k==='n' || k==='N'){ initAudio(); setSfxOff(!sfxOff); }
   else if(state==='playing' && (k==='ArrowUp' || k==='w' || k==='W' || k===' ')){ superJump(); e.preventDefault(); }
+  else if(state==='playing' && (k==='ArrowDown' || k==='s' || k==='S')){ startTrick('flip'); e.preventDefault(); }
   else if((k===' ' || k==='Enter') && document.activeElement===renderer.domElement){
     if(state==='menu' && !$('menu').hidden) { requestStart(); e.preventDefault(); }
     else if(state==='over' && !$('over').hidden) { startGame(); e.preventDefault(); }
@@ -1985,6 +2409,7 @@ cv.addEventListener('pointermove', e=>{
   if(!ptr || ptr.used) return;
   const dx = e.clientX-ptr.x, dy = e.clientY-ptr.y;
   if(dy < -28 && Math.abs(dy) > Math.abs(dx)){ superJump(); ptr.used = true; }
+  else if(dy > 28 && Math.abs(dy) > Math.abs(dx)){ startTrick('flip'); ptr.used = true; }
   else if(Math.abs(dx) > 28){ steer(dx>0?1:-1); ptr.used = true; }
 });
 jumpBtn.addEventListener('pointerdown', e=>{ e.preventDefault(); superJump(); });
