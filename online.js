@@ -1,4 +1,4 @@
-// RC Rampage online layer: email-code sign-in, server-owned progress, ranked runs and the leaderboard.
+// RC Rampage online layer: passwordless email-link sign-in, server-owned progress, ranked runs and the leaderboard.
 // The browser only ever reads the public leaderboard directly. Everything else goes through the
 // Edge Functions in supabase/functions, which check the signed-in user and validate every request.
 (function(){
@@ -72,7 +72,7 @@ async function onSignedIn(u){
     setState(res.state);
     flushPending();
     if(!res.state.name) openAccount('name');
-    else if(!$('account').hidden && (!$('acCode').hidden || !$('acEmail').hidden)) openAccount();   // signed in from the email link
+    else if(!$('account').hidden && (!$('acSent').hidden || !$('acEmail').hidden)) openAccount();   // signed in from the email link
   }catch(e){
     if(e.code === 'not_signed_in'){ await sb.auth.signOut(); return; }
     console.warn('profile', e.code);
@@ -151,11 +151,11 @@ function closeUI(){
 listeners.closed = [];
 
 // ---------- account panel ----------
-let tsWidget = null, tsToken = '', pendingEmail = '';
+let tsWidget = null, tsToken = '';
 function step(name){
-  for(const s of ['acEmail','acCode','acName','acMe','acOff']) $(s).hidden = s !== name;
+  for(const s of ['acEmail','acSent','acName','acMe','acOff']) $(s).hidden = s !== name;
   $('acMsg').textContent = '';
-  const focus = {acEmail:'acEmailIn', acCode:'acCodeIn', acName:'acNameIn', acMe:'acBack'}[name];
+  const focus = {acEmail:'acEmailIn', acSent:'acBack2', acName:'acNameIn', acMe:'acBack'}[name];
   if(focus) setTimeout(()=>$(focus)?.focus(), 30);
 }
 function say(text, ok){ const m = $('acMsg'); m.textContent = text; m.classList.toggle('ok', !!ok); }
@@ -194,21 +194,8 @@ async function sendCode(){
   busy(btn, false);
   if(tsWidget && tsWidget !== 'loading'){ window.turnstile.reset(tsWidget); tsToken = ''; }
   if(error){ say(error.status === 429 ? MESSAGES.slow_down : 'Couldn’t send the code. Check the address and try again.'); return; }
-  pendingEmail = email; $('acSentTo').textContent = email; $('acCodeIn').value = '';
-  step('acCode');
-}
-async function verifyCode(){
-  const token = $('acCodeIn').value.replace(/\D/g, '');
-  if(!pendingEmail){ step('acEmail'); return; }
-  if(token.length !== 6){ say('The code has 6 digits.'); return; }
-  const btn = $('acVerify'); busy(btn, true);
-  const { error } = await sb.auth.verifyOtp({email: pendingEmail, token, type:'email'});
-  busy(btn, false);
-  if(error){ say('That code is wrong or expired.'); return; }
-  say('Signed in.', true);
-  // onAuthStateChange picks it up; show the name step or the account once state arrives
-  const once = st => { listeners.state = listeners.state.filter(f=>f!==once); if(!$('account').hidden) openAccount(st.name ? null : 'name'); };
-  listeners.state.push(once);
+  $('acSentTo').textContent = email;
+  step('acSent');
 }
 async function saveName(){
   const name = $('acNameIn').value.replace(/\s+/g,' ').trim();
@@ -260,9 +247,6 @@ function openBoard(){ showPanel('board'); renderBoard(); setTimeout(()=>$('board
 function wire(){
   $('acSend').addEventListener('click', sendCode);
   $('acEmailIn').addEventListener('keydown', e=>{ if(e.key==='Enter') sendCode(); });
-  $('acVerify').addEventListener('click', verifyCode);
-  $('acCodeIn').addEventListener('keydown', e=>{ if(e.key==='Enter') verifyCode(); });
-  $('acCodeIn').addEventListener('input', e=>{ if(e.target.value.replace(/\D/g,'').length === 6) verifyCode(); });
   $('acResend').addEventListener('click', ()=>{ step('acEmail'); loadTurnstile(); });
   $('acSaveName').addEventListener('click', saveName);
   $('acNameIn').addEventListener('keydown', e=>{ if(e.key==='Enter') saveName(); });

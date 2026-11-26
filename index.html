@@ -195,7 +195,6 @@ kbd{font-family:var(--f-ui);font-weight:700;font-size:11px;background:var(--plas
 .field label{font-size:11px;letter-spacing:.18em;font-weight:700;color:var(--muted);text-transform:uppercase}
 .field input{font:600 17px var(--f-ui);color:var(--text);background:#0f1115;border:1px solid var(--edge);border-radius:10px;padding:12px 14px;width:100%;box-sizing:border-box;-webkit-user-select:text;user-select:text}
 .field input:focus{outline:2px solid var(--hazard);outline-offset:1px;border-color:transparent}
-.field input.code{font-family:var(--f-display);font-size:28px;letter-spacing:.35em;text-align:center}
 .acmsg{min-height:1.4em;font-size:13px;color:#ff8a7a;margin:0 0 12px}
 .acmsg.ok{color:var(--p-jump)}
 .fine{font-size:12px!important;color:var(--muted)!important;margin:12px 0 0!important}
@@ -366,15 +365,14 @@ kbd{font-family:var(--f-ui);font-weight:700;font-size:11px;background:var(--plas
       <p>Save your coins and trucks online and get on the leaderboard. No password: we email you a sign-in link.</p>
       <div class="field"><label for="acEmailIn">Email</label><input id="acEmailIn" type="email" autocomplete="email" inputmode="email" maxlength="254" spellcheck="false"></div>
       <div class="ts" id="tsBox"></div>
-      <div class="row"><button class="btn" id="acSend" type="button">Email me a code</button><button class="btn ghost" id="acBack" type="button">Back</button></div>
+      <div class="row"><button class="btn" id="acSend" type="button">Email me a sign-in link</button><button class="btn ghost" id="acBack" type="button">Back</button></div>
       <p class="fine">We only store your email (to sign you in) and the driver name you pick. Your email is never shown to other players.</p>
     </div>
-    <div id="acCode" hidden>
+    <div id="acSent" hidden>
       <h2>Check your email</h2>
-      <p>We sent an email to <b id="acSentTo"></b>. Tap the sign-in link in it, or type the 6-digit code if the email has one. It expires in 10 minutes.</p>
-      <div class="field"><label for="acCodeIn">Code</label><input id="acCodeIn" class="code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]*"></div>
-      <div class="row"><button class="btn" id="acVerify" type="button">Sign in</button><button class="btn ghost" id="acBack2" type="button">Back</button></div>
-      <p class="fine"><button class="linkbtn" id="acResend" type="button">Use a different email or send a new code</button></p>
+      <p>We sent a sign-in link to <b id="acSentTo"></b>. Tap it on this device and the game opens signed in. The link expires in 10 minutes and works once.</p>
+      <div class="row"><button class="btn ghost" id="acBack2" type="button">Back</button></div>
+      <p class="fine">Nothing arrived? Check your spam folder, or <button class="linkbtn" id="acResend" type="button">use a different email or send a new link</button>.</p>
     </div>
     <div id="acName" hidden>
       <h2>Pick a driver name</h2>
@@ -425,8 +423,8 @@ kbd{font-family:var(--f-ui);font-weight:700;font-size:11px;background:var(--plas
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" integrity="sha384-CI3ELBVUz9XQO+97x6nwMDPosPR5XvsxW2ua7N1Xeygeh1IxtgqtCkGfQY9WWdHu" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/dist/umd/supabase.js" integrity="sha384-TcHRA3zBbn+Lexh5n+Oil4guNPOS3rjNDpGRAN46u/s/mB2IZ50ceC6TYDU2yvgK" crossorigin="anonymous"></script>
-<script src="supabase/functions/_shared/rules.js"></script>
-<script src="online.js"></script>
-<script src="game.js"></script>
+<script src="supabase/functions/_shared/rules.js?v=202611262056"></script>
+<script src="online.js?v=202611262056"></script>
+<script src="game.js?v=202611262056"></script>
 </body>
 </html>

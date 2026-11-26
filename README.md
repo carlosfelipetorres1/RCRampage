@@ -45,7 +45,7 @@ Backend: Supabase (Postgres, email auth, Edge Functions). Without configuration 
 
   Rejected runs pay nothing; repeated ones flag the account for review.
 - **Coins and unlocks are server-owned** for signed-in players. Guest progress is carried over once, capped at 2,000 coins and 2,500 coins' worth of items, because local storage is editable.
-- **Content Security Policy:** no inline scripts, and CDN scripts pinned with Subresource Integrity. Turnstile captcha on sign-in code requests.
+- **Content Security Policy:** no inline scripts, and CDN scripts pinned with Subresource Integrity. Turnstile captcha on sign-in email requests.
 - Rules shared by the game and the server (prices, missions, limits) live in one file: `supabase/functions/_shared/rules.js`.
 
 A browser game can't be made fully cheat-proof: someone who studies the checks can submit a run just under every limit. The next step up would be deterministic replays verified on the server.
@@ -56,7 +56,7 @@ A browser game can't be made fully cheat-proof: someone who studies the checks c
 3. `supabase db push`. This applies `supabase/migrations/`.
 4. `supabase functions deploy`.
 5. `TURNSTILE_SECRET=… supabase config push`, and put the Turnstile site key in `online.js`.
-6. For more than a handful of sign-ups an hour, set up custom SMTP (for example Resend) in the dashboard. Until then, Supabase's built-in mailer can't use custom templates, so sign-in emails carry a link (the game accepts it). With SMTP set up, uncomment the templates in `supabase/config.toml` and push again, so emails show a 6-digit code instead.
+6. For more than a handful of sign-ups an hour, set up custom SMTP (for example Resend) in the dashboard. Sign-in is by email link: Supabase sends it and the game picks up the session when the link opens.
 
 ### Tests
 - **Database security and logic:**

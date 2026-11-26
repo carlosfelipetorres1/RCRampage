@@ -26,23 +26,12 @@ sign_in_sign_ups = 30
 enabled = true
 double_confirm_changes = true
 enable_confirmations = false
-otp_length = 6
 otp_expiry = 600
 max_frequency = "60s"
 
-# Code-only emails need custom SMTP (Supabase's free built-in mailer can't use custom templates).
-# Until then the default emails carry a sign-in link, which the game also accepts. After setting up
-# SMTP, uncomment these so the email shows the 6-digit code ({{ .Token }}).
-# New players get "confirmation", returning players get "magic_link".
-# [auth.email.template.confirmation]
-# subject = "Your RC Rampage sign-in code"
-# content_path = "./supabase/templates/code.html"
+# Sign-in is by email link (Supabase's default magic-link email). otp_expiry is how long the link lasts.
 
-# [auth.email.template.magic_link]
-# subject = "Your RC Rampage sign-in code"
-# content_path = "./supabase/templates/code.html"
-
-# Cloudflare Turnstile on sign-in code requests (stops email bombing). Off until a Turnstile site exists:
+# Cloudflare Turnstile on sign-in email requests (stops email bombing). Off until a Turnstile site exists:
 # then set enabled = true, put the site key in online.js and push with TURNSTILE_SECRET=... supabase config push
 [auth.captcha]
 enabled = false
