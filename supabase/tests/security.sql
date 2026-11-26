@@ -38,7 +38,12 @@ select t.fails(r, q, '%permission denied%') from
     'select public.rc_commit_run(gen_random_uuid(), gen_random_uuid(), true, null, 1,1,1,1,1,''{}'',0,''[]'',0,0,null)',
     'select public.rc_import_guest(gen_random_uuid(), 2000, ''{}'', null, 0, ''{}'')',
     'select public.rc_hit_rate_limit(''x'', 1, 1)',
-    'select game.inventory(gen_random_uuid())'
+    'select game.inventory(gen_random_uuid())',
+    'select public.rc_grant_purchase(gen_random_uuid(), ''cs_x'', ''pi_x'', ''coins:4000'', 499, ''eur'')',
+    'select public.rc_revoke_purchase(''pi_x'')',
+    'select public.rc_set_skin(gen_random_uuid(), ''gold'')',
+    'select public.rc_check_purchasable(gen_random_uuid(), ''skin:gold'')',
+    'select * from game.purchases'
   ]) q;
 commit;
 -- nothing in the exposed schema is readable or callable by browser roles except get_leaderboard
@@ -139,5 +144,37 @@ select t.eq((select array_agg(public.rc_hit_rate_limit('k', 2, 60)) from generat
 delete from auth.users where id = :A;
 select t.eq((select count(*) from game.runs where user_id = :A) + (select count(*) from game.coin_ledger where user_id = :A)
           + (select count(*) from game.wallets where user_id = :A) + (select count(*) from game.profiles where id = :A), 0::bigint, 'account deletion cascades');
+
+-- 10. Shop: coin skins, real-money skins and coin packs.
+insert into auth.users (id, email) values ('00000000-0000-0000-0000-00000000000e', 'e@test');
+\set E '''00000000-0000-0000-0000-00000000000e'''
+select t.fails('postgres', 'select public.rc_buy_item(''00000000-0000-0000-0000-00000000000e'', ''skin:gold'')', '%unknown_item%');
+select t.fails('postgres', 'select public.rc_buy_item(''00000000-0000-0000-0000-00000000000e'', ''coins:4000'')', '%unknown_item%');
+select t.fails('postgres', 'select public.rc_check_purchasable(''00000000-0000-0000-0000-00000000000e'', ''skin:cherry'')', '%unknown_item%');
+select t.eq(public.rc_check_purchasable(:E, 'skin:gold'), 199, 'gold is purchasable for 199');
+select t.fails('postgres', 'select public.rc_grant_purchase(''00000000-0000-0000-0000-00000000000e'', ''cs_1'', ''pi_1'', ''coins:4000'', 99, ''eur'')', '%amount_mismatch%');
+select t.fails('postgres', 'select public.rc_grant_purchase(''00000000-0000-0000-0000-00000000000e'', ''cs_1'', ''pi_1'', ''coins:4000'', 499, ''usd'')', '%amount_mismatch%');
+select t.eq(public.rc_grant_purchase(:E, 'cs_1', 'pi_1', 'coins:4000', 499, 'eur'), 'granted', 'coin pack granted');
+select t.eq(public.rc_grant_purchase(:E, 'cs_1', 'pi_1', 'coins:4000', 499, 'eur'), 'duplicate', 'webhook retry is a no-op');
+select t.eq((public.rc_get_state(:E)->>'coins')::int, 4000, 'coins credited once');
+select t.eq(public.rc_buy_item(:E, 'skin:cherry'), 3800::bigint, 'buy coin skin');
+select t.fails('postgres', 'select public.rc_set_skin(''00000000-0000-0000-0000-00000000000e'', ''gold'')', '%not_owned%');
+select t.eq(public.rc_grant_purchase(:E, 'cs_2', 'pi_2', 'skin:gold', 199, 'EUR'), 'granted', 'skin granted');
+select t.fails('postgres', 'select public.rc_check_purchasable(''00000000-0000-0000-0000-00000000000e'', ''skin:gold'')', '%already_owned%');
+select public.rc_set_skin(:E, 'gold');
+select t.eq(public.rc_get_state(:E)->>'skin', 'gold', 'skin equipped');
+-- refunds take things back
+select public.rc_buy_item(:E, 'truck:howler');
+select t.eq(public.rc_revoke_purchase('pi_2'), 'revoked', 'skin refund');
+select t.eq(public.rc_revoke_purchase('pi_2'), 'already', 'second refund event is a no-op');
+select t.eq(public.rc_get_state(:E)->>'skin', 'stock', 'refunded skin unequipped');
+select t.eq((public.rc_get_state(:E)->'items') ? 'skin:gold', false, 'refunded skin removed');
+select t.eq(public.rc_revoke_purchase('pi_1'), 'revoked', 'coin refund');
+select t.eq((public.rc_get_state(:E)->>'coins')::int, 0, 'refund only takes coins that are left');
+select t.eq((select sum(delta) from game.coin_ledger where user_id = :E), 0::numeric, 'ledger matches wallet');
+-- purchases survive account deletion as records, detached from the user
+delete from auth.users where id = :E;
+select t.eq((select count(*) from game.purchases where user_id is null), 2::bigint, 'purchase records kept without the user');
+select t.eq(public.rc_grant_purchase('00000000-0000-0000-0000-00000000000e', 'cs_3', 'pi_3', 'coins:500', 99, 'eur'), 'no_user', 'paid after deletion: recorded, nothing granted');
 
 \echo ALL DATABASE TESTS PASSED

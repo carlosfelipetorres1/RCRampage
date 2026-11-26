@@ -8,7 +8,7 @@ export type Mission = { type: string; goal: unknown; reward: number; base: numbe
 export type DbState = {
   name: string | null; banned: boolean; coins: number; items: string[];
   missions: Mission[]; missions_done: number; missions_rev: number; crashes: string[];
-  truck: string; imported: boolean; best: number; best_week: number;
+  truck: string; skin: string; imported: boolean; best: number; best_week: number;
 };
 
 const rng = () => crypto.getRandomValues(new Uint32Array(1))[0] / 2 ** 32;
@@ -39,7 +39,7 @@ export async function loadState(uid: string): Promise<DbState> {
 export function forClient(s: DbState) {
   const inv = R.inventory(s.items);
   return {
-    name: s.name, coins: s.coins, trucks: inv.trucks, upgrades: inv.upgrades,
+    name: s.name, coins: s.coins, trucks: inv.trucks, upgrades: inv.upgrades, skins: inv.skins, skin: s.skin,
     missions: s.missions, missionsDone: s.missions_done, crashes: s.crashes,
     truck: s.truck, imported: s.imported, best: s.best, bestWeek: s.best_week,
   };

@@ -214,6 +214,19 @@ kbd{font-family:var(--f-ui);font-weight:700;font-size:11px;background:var(--plas
 .boardnote{font-size:13px!important;color:var(--muted)!important;margin:0 0 14px!important}
 .rankline{font-size:14px!important;margin:0 0 14px!important;color:var(--text)!important;min-height:1.5em}
 .rankline.bad{color:var(--muted)!important}
+
+/* Shop: paint jobs and coin packs */
+.cards.skins{grid-template-columns:repeat(4,minmax(0,1fr))}
+.card .swatch{width:100%;aspect-ratio:4/3;border-radius:8px;display:block;box-shadow:inset 0 -10px 18px rgba(0,0,0,.35)}
+.card .prem{position:absolute;top:10px;left:10px;background:linear-gradient(135deg,#fff0a8,#d4a52c);color:#2a1c00;border-radius:6px;padding:2px 6px;font-size:10px;font-weight:700;letter-spacing:.1em}
+.packs{list-style:none;margin:0 0 12px;padding:0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.packs li{display:flex;flex-direction:column;align-items:center;gap:8px;background:var(--plastic-2);border-radius:12px;padding:14px 8px;text-align:center}
+.packs .amt{font-family:var(--f-display);font-size:clamp(18px,4.5vw,24px);color:var(--hazard);display:flex;align-items:center;gap:6px}
+.packs small{color:var(--muted);font-size:11px;min-height:1.3em}
+.packs .btn{font-size:15px;padding:10px 14px;width:100%}
+.toast{position:fixed;top:calc(env(safe-area-inset-top,0px) + 14px);left:50%;transform:translateX(-50%);z-index:40;background:var(--plastic);border:1px solid var(--edge);border-left:4px solid var(--p-jump);border-radius:10px;padding:10px 16px;font-size:14px;box-shadow:0 12px 30px rgba(0,0,0,.5);max-width:calc(100vw - 32px)}
+.toast.bad{border-left-color:#ff6a5a}
+@media (max-width:520px){ .cards.skins{grid-template-columns:repeat(4,minmax(0,1fr));gap:6px} .card .prem{top:8px;left:8px;font-size:9px} .tab{padding:8px 6px;font-size:12px} }
 </style>
 </head>
 <body>
@@ -312,10 +325,12 @@ kbd{font-family:var(--f-ui);font-weight:700;font-size:11px;background:var(--plas
     </div>
     <div class="tabs" role="tablist" aria-label="Garage sections">
       <button class="tab" id="tabTrucks" role="tab" type="button" aria-selected="true" aria-controls="paneTrucks">Trucks</button>
-      <button class="tab" id="tabUpgrades" role="tab" type="button" aria-selected="false" aria-controls="paneUpgrades">Power upgrades</button>
+      <button class="tab" id="tabSkins" role="tab" type="button" aria-selected="false" aria-controls="paneSkins">Paint</button>
+      <button class="tab" id="tabUpgrades" role="tab" type="button" aria-selected="false" aria-controls="paneUpgrades">Upgrades</button>
+      <button class="tab" id="tabCoins" role="tab" type="button" aria-selected="false" aria-controls="paneCoins">Coins</button>
     </div>
     <div id="paneTrucks" role="tabpanel" aria-labelledby="tabTrucks">
-    <div class="preview"><canvas id="previewCv" aria-hidden="true"></canvas><div class="pname"><b id="gName">Blaze</b><span id="gTag">Classic pickup</span></div></div>
+    <div class="preview" id="previewBox"><canvas id="previewCv" aria-hidden="true"></canvas><div class="pname"><b id="gName">Blaze</b><span id="gTag">Classic pickup</span></div></div>
     <p class="gdesc" id="gDesc"></p>
     <p class="perk" id="gPerk"></p>
     <div class="cards" id="cards" role="radiogroup" aria-label="Monster trucks"></div>
@@ -324,6 +339,22 @@ kbd{font-family:var(--f-ui);font-weight:700;font-size:11px;background:var(--plas
       <button class="btn ghost" id="gBack" type="button">Back</button>
       <span class="best" id="gNote"></span>
     </div>
+    </div>
+    <div id="paneSkins" role="tabpanel" aria-labelledby="tabSkins" hidden>
+      <div id="previewSlot"></div>
+      <p class="gdesc">Paint jobs work on every truck. Earn the first four with coins; the shiny ones are premium.</p>
+      <div class="cards skins" id="skinCards" role="radiogroup" aria-label="Paint jobs"></div>
+      <div class="row">
+        <button class="btn" id="sOk" type="button">Use this paint</button>
+        <button class="btn ghost" id="sBack" type="button">Back</button>
+        <span class="best" id="sNote"></span>
+      </div>
+    </div>
+    <div id="paneCoins" role="tabpanel" aria-labelledby="tabCoins" hidden>
+      <p class="gdesc">Short on coins for a truck or an upgrade? Top up here. Payments are handled by Stripe; we never see your card.</p>
+      <ul class="packs" id="packList"></ul>
+      <p class="best" id="cNote"></p>
+      <div class="row"><button class="btn ghost" id="cBack" type="button">Back</button><button class="btn small" id="cSignIn" type="button" hidden>Sign in to buy coins</button></div>
     </div>
     <div id="paneUpgrades" role="tabpanel" aria-labelledby="tabUpgrades" hidden>
       <p class="gdesc">Each upgrade makes a super power last longer. Powers still unlock by score during a run.</p>
@@ -356,6 +387,8 @@ kbd{font-family:var(--f-ui);font-weight:700;font-size:11px;background:var(--plas
     </div>
   </div>
 </div>
+
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
 
 <div class="overlay" id="account" hidden>
   <div class="panel">
@@ -423,8 +456,8 @@ kbd{font-family:var(--f-ui);font-weight:700;font-size:11px;background:var(--plas
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" integrity="sha384-CI3ELBVUz9XQO+97x6nwMDPosPR5XvsxW2ua7N1Xeygeh1IxtgqtCkGfQY9WWdHu" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/dist/umd/supabase.js" integrity="sha384-TcHRA3zBbn+Lexh5n+Oil4guNPOS3rjNDpGRAN46u/s/mB2IZ50ceC6TYDU2yvgK" crossorigin="anonymous"></script>
-<script src="supabase/functions/_shared/rules.js?v=202611262056"></script>
-<script src="online.js?v=202611262056"></script>
-<script src="game.js?v=202611262056"></script>
+<script src="supabase/functions/_shared/rules.js?v=202611262112"></script>
+<script src="online.js?v=202611262112"></script>
+<script src="game.js?v=202611262112"></script>
 </body>
 </html>

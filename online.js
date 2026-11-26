@@ -36,6 +36,8 @@ const MESSAGES = {
   run_not_open: 'This run expired before it was sent.',
   banned: 'This account can’t post scores.',
   server_error: 'Something went wrong on our side. Try again.',
+  payments_unavailable: 'Payments aren’t available right now. Try again later.',
+  unknown_item: 'That item isn’t for sale.',
 };
 const message = code => MESSAGES[code] || String(code || 'server_error').replace(/_/g, ' ');
 
@@ -129,6 +131,44 @@ async function finishRun(runIdPromise, report){
 }
 async function buy(item){ return setState((await call('shop-buy', {item})).state); }
 async function setTruck(truck){ try{ setState((await call('profile', {action:'truck', truck})).state); }catch(e){} }
+async function setSkin(skin){ return setState((await call('profile', {action:'skin', skin})).state); }
+async function refresh(){ return setState((await call('profile', {action:'get'})).state); }
+// Real-money purchase: the server opens a Stripe Checkout page and we go there. The item is
+// added by Stripe's webhook after payment; returning here with ?purchase=success picks it up.
+async function checkout(item){
+  const { url } = await call('checkout', {item, returnPath: location.pathname});
+  if(!/^https:\/\/checkout\.stripe\.com\//.test(url)) throw new OnlineError('payments_unavailable', 0);
+  try{ sessionStorage.setItem('rc-rampage-prebuy', JSON.stringify([state?.coins, state?.skins])); }catch(e){}
+  location.assign(url);
+}
+// After Stripe sends the player back: wait for the webhook to land, then tell them.
+function handlePurchaseReturn(){
+  const q = new URLSearchParams(location.search), r = q.get('purchase');
+  if(!r) return;
+  q.delete('purchase');
+  history.replaceState(null, '', location.pathname + (q.toString() ? '?' + q : '') + location.hash);
+  if(r === 'cancel'){ toast('Payment cancelled. You weren’t charged.', true); return; }
+  if(r !== 'success') return;
+  toast('Payment received! Adding it to your account…');
+  let before = null; try{ before = sessionStorage.getItem('rc-rampage-prebuy'); sessionStorage.removeItem('rc-rampage-prebuy'); }catch(e){}
+  let tries = 0;
+  const poll = async () => {
+    tries++;
+    if(!user){ if(tries < 10) setTimeout(poll, 1000); return; }
+    try{
+      const st = await refresh();
+      if(before && JSON.stringify([st.coins, st.skins]) !== before){ toast('Thanks! Your purchase is ready.'); return; }
+    }catch(e){}
+    if(tries < 12) setTimeout(poll, 2500);
+    else toast('Your payment went through. It can take a minute to show up; reload if it doesn’t.');
+  };
+  setTimeout(poll, 1500);
+}
+let toastTimer = 0;
+function toast(text, bad){
+  const el = $('toast'); el.textContent = text; el.classList.toggle('bad', !!bad); el.hidden = false;
+  clearTimeout(toastTimer); toastTimer = setTimeout(()=>{ el.hidden = true; }, 6000);
+}
 async function leaderboard(board, lim){
   const { data, error } = await sb.rpc('get_leaderboard', {board, lim});
   if(error) throw new OnlineError('offline', 0);
@@ -267,7 +307,7 @@ window.RCOnline = {
   on(ev, fn){ (listeners[ev] ||= []).push(fn); },
   set guestSnapshot(fn){ guestSnapshot = fn; },
   isOpen: () => !$('account').hidden || !$('board').hidden,
-  init(){ wire(); init(); },
-  openAccount, openBoard, closeUI, startRun, finishRun, buy, setTruck, message,
+  init(){ wire(); init(); handlePurchaseReturn(); },
+  openAccount, openBoard, closeUI, startRun, finishRun, buy, setTruck, setSkin, checkout, refresh, toast, message,
 };
 })();

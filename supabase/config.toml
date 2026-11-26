@@ -56,3 +56,7 @@ verify_jwt = false
 verify_jwt = false
 [functions.delete-account]
 verify_jwt = false
+[functions.checkout]
+verify_jwt = false
+[functions.stripe-webhook]
+verify_jwt = false

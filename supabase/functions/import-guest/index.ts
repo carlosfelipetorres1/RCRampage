@@ -6,7 +6,7 @@ import { type DbState, forClient, loadState, R } from '../_shared/game.ts';
 
 serveUser('import-guest', { rate: [5, 60] }, async ({ user, body }) => {
   const b = shape<{
-    coins: number; trucks: string[]; upgrades: Record<string, number>;
+    coins: number; trucks: string[]; skins?: string[]; upgrades: Record<string, number>;
     missions: unknown[]; missionsDone: number; crashes: string[];
   }>(body, {
     coins: is.int(0, 1e9),
@@ -15,11 +15,14 @@ serveUser('import-guest', { rate: [5, 60] }, async ({ user, body }) => {
     missions: is.arr(3),
     missionsDone: is.int(0, 1e6),
     crashes: (v) => is.arr(R.DEATH_IDS.length)(v) && (v as unknown[]).every(is.oneOf(R.DEATH_IDS)),
-  });
+    skins: (v) => is.arr(R.SKIN_IDS.length)(v) && (v as unknown[]).every(is.oneOf(R.SKIN_IDS)),
+  }, ['skins']);
   const s = await loadState(user.id);
   if (s.imported) return { state: forClient(s), imported: false };
 
   const items: string[] = b.trucks.filter((t) => t !== 'blaze').map((t) => 'truck:' + t);
+  // only coin skins: anything paid for with money is granted by the Stripe webhook, never imported
+  for (const sk of b.skins ?? []) if (R.SKINS.find((x: { id: string; coins?: number }) => x.id === sk)?.coins) items.push('skin:' + sk);
   for (const [p, lvl] of Object.entries(b.upgrades)) for (let l = 1; l <= lvl; l++) items.push(`upg:${p}:${l}`);
   const missions = b.missions.filter(R.validMission);
   const st = await rpc<DbState>('rc_import_guest', {

@@ -1,4 +1,4 @@
-// Read the signed-in player's state, set the display name, or pick the truck.
+// Read the signed-in player's state, set the display name, or pick the truck or skin.
 import { HttpError, is, rpc, serveUser, shape } from '../_shared/http.ts';
 import { forClient, loadState, R } from '../_shared/game.ts';
 
@@ -15,11 +15,12 @@ function cleanName(raw: string): string {
 }
 
 serveUser('profile', { rate: [60, 60] }, async ({ user, body }) => {
-  const b = shape<{ action: string; name?: string; truck?: string }>(body, {
-    action: is.oneOf(['get', 'name', 'truck']),
+  const b = shape<{ action: string; name?: string; truck?: string; skin?: string }>(body, {
+    action: is.oneOf(['get', 'name', 'truck', 'skin']),
     name: is.str(40),
     truck: is.oneOf(R.TRUCK_IDS),
-  }, ['name', 'truck']);
+    skin: is.oneOf(R.SKIN_IDS),
+  }, ['name', 'truck', 'skin']);
 
   if (b.action === 'name') {
     if (b.name === undefined) throw new HttpError(400, 'missing_field');
@@ -27,6 +28,9 @@ serveUser('profile', { rate: [60, 60] }, async ({ user, body }) => {
   } else if (b.action === 'truck') {
     if (b.truck === undefined) throw new HttpError(400, 'missing_field');
     await rpc('rc_set_truck', { p_uid: user.id, p_truck: b.truck });
+  } else if (b.action === 'skin') {
+    if (b.skin === undefined) throw new HttpError(400, 'missing_field');
+    await rpc('rc_set_skin', { p_uid: user.id, p_skin: b.skin });
   }
   return { state: forClient(await loadState(user.id)) };
 });

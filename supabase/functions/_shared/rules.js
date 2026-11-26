@@ -16,21 +16,48 @@ const DEATH_IDS = ['flip','shatter','orbit','balls','pancake','wheels','kaboom',
 const THEME_IDS = ['city', 'farm', 'suburb', 'show'];
 const THEME_NAMES = {city:'City', farm:'Farmland', suburb:'Suburbs', show:'Monster truck show'};
 
+// Paint jobs that work on every truck. Bought with coins, or with real money (cents, EUR).
+// 'stock' is each truck's own paint and is always owned.
+const SKINS = [
+  {id:'stock',  name:'Factory paint'},
+  {id:'cherry', name:'Cherry Red',   coins:200},
+  {id:'mint',   name:'Mint & Cream', coins:200},
+  {id:'camo',   name:'Desert Camo',  coins:400},
+  {id:'zebra',  name:'Zebra',        coins:400},
+  {id:'gold',   name:'Gold Rush',    cents:199},
+  {id:'flames', name:'Hot Flames',   cents:199},
+  {id:'galaxy', name:'Galaxy',       cents:299},
+];
+const SKIN_IDS = SKINS.map(s=>s.id);
+// Coin packs for real money (EUR cents).
+const COIN_PACKS = [
+  {id:'coins:500',  coins:500,  cents:99},
+  {id:'coins:1500', coins:1500, cents:249},
+  {id:'coins:4000', coins:4000, cents:499},
+];
+const CURRENCY = 'eur';
+const formatPrice = cents => '€' + (cents/100).toFixed(2);
+
 // Everything that can be bought. Item ids are what the server stores in owned_items.
+// price = coins (null when it's real money only), cents = real-money price (null when coins only).
 function catalog(){
   const items = [];
-  for(const id of TRUCK_IDS) items.push({item_id:'truck:'+id, kind:'truck', price:TRUCK_PRICE[id], requires:null});
+  for(const id of TRUCK_IDS) items.push({item_id:'truck:'+id, kind:'truck', price:TRUCK_PRICE[id], cents:null, requires:null});
   for(const p of POWER_IDS) for(let l=1; l<=UPG_MAX; l++)
-    items.push({item_id:`upg:${p}:${l}`, kind:'upgrade', price:UPG_COST[l-1], requires: l>1 ? `upg:${p}:${l-1}` : null});
+    items.push({item_id:`upg:${p}:${l}`, kind:'upgrade', price:UPG_COST[l-1], cents:null, requires: l>1 ? `upg:${p}:${l-1}` : null});
+  for(const s of SKINS) if(s.id !== 'stock')
+    items.push({item_id:'skin:'+s.id, kind:'skin', price:s.coins ?? null, cents:s.cents ?? null, requires:null});
+  for(const c of COIN_PACKS) items.push({item_id:c.id, kind:'coins', price:null, cents:c.cents, coins:c.coins, requires:null});
   return items;
 }
-// owned item ids -> {trucks:[...], upgrades:{jump:n,...}}
+// owned item ids -> {trucks:[...], upgrades:{jump:n,...}, skins:[...]}
 function inventory(itemIds){
   const set = new Set(itemIds);
   const trucks = TRUCK_IDS.filter(id => id==='blaze' || set.has('truck:'+id));
   const upgrades = {};
   for(const p of POWER_IDS){ let l = 0; while(l < UPG_MAX && set.has(`upg:${p}:${l+1}`)) l++; upgrades[p] = l; }
-  return {trucks, upgrades};
+  const skins = SKIN_IDS.filter(id => id==='stock' || set.has('skin:'+id));
+  return {trucks, upgrades, skins};
 }
 
 // ---------- physics limits used to check a run ----------
@@ -184,7 +211,7 @@ function settleMissions(missions, live){
 
 root.RCRULES = Object.freeze({
   GAME_VERSION, SUPPORTED_VERSIONS, TRUCK_IDS, TRUCK_PRICE, POWER_IDS, UPG_COST, UPG_MAX, DEATH_IDS, THEME_IDS, THEME_NAMES,
-  catalog, inventory, START_SPEED, MAX_SPEED, SPEED_RAMP, TURBO_MUL, minTimeForDist, STUNT_PTS, MAX_COMBO, LIMITS,
+  SKINS, SKIN_IDS, COIN_PACKS, CURRENCY, formatPrice, catalog, inventory, START_SPEED, MAX_SPEED, SPEED_RAMP, TURBO_MUL, minTimeForDist, STUNT_PTS, MAX_COMBO, LIMITS,
   RUN_STAT_KEYS, score, checkRun, MISSION_TYPES, missionDef, goalNum, newMission, fillMissions, missionValue,
   validMission, settleMissions,
 });

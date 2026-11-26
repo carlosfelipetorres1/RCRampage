@@ -2,18 +2,18 @@
 // CORS allow-list, POST-only, size-capped strict JSON, JWT check, per-user rate limit, error mapping.
 import { createClient, type SupabaseClient, type User } from 'npm:@supabase/supabase-js@2.118.0';
 
-const ALLOWED_ORIGINS = (Deno.env.get('ALLOWED_ORIGINS') ??
+export const ALLOWED_ORIGINS = (Deno.env.get('ALLOWED_ORIGINS') ??
   'https://carlosfelipetorres1.github.io,http://localhost:8777').split(',').map(s => s.trim()).filter(Boolean);
 const MAX_BODY = 16 * 1024;
 
 // Set only by supabase/tests/local-server.ts, which runs these handlers against a local Postgres.
 // deno-lint-ignore no-explicit-any
-const testHooks: any = (globalThis as any).__rcTest;
+const testHooks = (): any => (globalThis as any).__rcTest;
 
 let client: SupabaseClient | null = null;
 // Service-role client, created on first use (keeps the pure modules importable in tests).
 export function admin(): SupabaseClient {
-  client ??= testHooks?.admin ?? createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+  client ??= testHooks()?.admin ?? createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
     { auth: { persistSession: false, autoRefreshToken: false } });
   return client!;
 }
@@ -38,7 +38,7 @@ function corsHeaders(origin: string | null): Record<string, string> {
   return h;
 }
 
-export type Ctx = { user: User; body: Record<string, unknown> };
+export type Ctx = { user: User; body: Record<string, unknown>; origin: string | null };
 type Opts = { rate: [max: number, windowSeconds: number] };
 
 // Wrap a handler with all the checks. The handler returns a JSON-able value or throws HttpError.
@@ -70,14 +70,19 @@ export function serveUser(name: string, opts: Opts, handler: (ctx: Ctx) => Promi
       });
       if (!allowed) throw new HttpError(429, 'slow_down');
 
-      return reply(200, await handler({ user, body: body as Record<string, unknown> }));
+      return reply(200, await handler({ user, body: body as Record<string, unknown>, origin }));
     } catch (e) {
       if (e instanceof HttpError) return reply(e.status, { error: e.code });
       console.error(name, e);
       return reply(500, { error: 'server_error' });
     }
   };
-  if (testHooks) testHooks.register(name, serve); else Deno.serve(serve);
+  if (testHooks()) testHooks().register(name, serve); else Deno.serve(serve);
+}
+
+// A server-to-server endpoint with no user (the Stripe webhook). The handler does its own checks.
+export function serveRaw(name: string, serve: (req: Request) => Promise<Response>) {
+  if (testHooks()) testHooks().register(name, serve); else Deno.serve(serve);
 }
 
 // Call one of the service-role SQL functions. Business-rule failures (raised with errcode P0001)

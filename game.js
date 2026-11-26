@@ -114,12 +114,49 @@ const teethTex = canvasTex(128,32,(g,w,h)=>{
   g.fillStyle='#14161b'; g.fillRect(0,0,w,h); g.fillStyle='#f4f1ea';
   for(let x=0;x<w;x+=16){ g.beginPath(); g.moveTo(x,0); g.lineTo(x+16,0); g.lineTo(x+8,h*0.55); g.fill(); g.beginPath(); g.moveTo(x+8,h); g.lineTo(x+24,h); g.lineTo(x+16,h*0.45); g.fill(); }
 });
-function buildTruck(id, lite=false){
+// ---------- skins: paint jobs that work on every truck (prices live in rules.js) ----------
+const skinMatCache = {};
+function texMat(key, draw, o={}, glow=0){
+  if(skinMatCache[key]) return skinMatCache[key];
+  const m = new THREE.MeshStandardMaterial(Object.assign({color:'#ffffff', map:canvasTex(128,128,draw), roughness:0.45, metalness:0.15}, o));
+  if(glow){ m.emissive.set('#ffffff'); m.emissiveMap = m.map; m.emissiveIntensity = glow; }   // the paint itself glows
+  return skinMatCache[key] = m;
+}
+const SKIN_LOOK = {
+  cherry: {swatch:'linear-gradient(135deg,#d0142c 60%,#f4f1ea 60%)', shell:()=>mat('#c8102e',{roughness:0.22, metalness:0.35}), accent:()=>mat('#f4f1ea',{roughness:0.4})},
+  mint:   {swatch:'linear-gradient(135deg,#7fdcc0 60%,#fff1d0 60%)', shell:()=>mat('#7fdcc0',{roughness:0.35, metalness:0.15}), accent:()=>mat('#fff1d0',{roughness:0.45})},
+  camo:   {swatch:'radial-gradient(circle at 30% 30%,#8a7350 18%,transparent 19%),radial-gradient(circle at 70% 65%,#5e4b32 20%,transparent 21%),#c2a878',
+           shell:()=>texMat('camo',(g,w,h)=>{ g.fillStyle='#c2a878'; g.fillRect(0,0,w,h);
+             for(const [c,n] of [['#a48a5e',9],['#8a7350',8],['#5e4b32',6]]){ g.fillStyle=c; for(let i=0;i<n;i++){ g.beginPath(); g.ellipse(Math.random()*w,Math.random()*h,rand(10,24),rand(7,15),rand(0,3),0,Math.PI*2); g.fill(); } } }, {roughness:0.85, metalness:0}),
+           accent:()=>mat('#3d3326',{roughness:0.8})},
+  zebra:  {swatch:'repeating-linear-gradient(60deg,#f4f1ea 0 6px,#14161b 6px 12px)',
+           shell:()=>texMat('zebra',(g,w,h)=>{ g.fillStyle='#f4f1ea'; g.fillRect(0,0,w,h); g.fillStyle='#14161b';
+             for(let x=-w;x<w*2;x+=22){ g.beginPath(); g.moveTo(x,0); g.bezierCurveTo(x+18,h*0.3,x-10,h*0.6,x+14,h); g.lineTo(x+24,h); g.bezierCurveTo(x+2,h*0.6,x+30,h*0.3,x+10,0); g.fill(); } }, {roughness:0.5}),
+           accent:()=>mat('#14161b',{roughness:0.5})},
+  gold:   {swatch:'linear-gradient(135deg,#fff0a8,#d4a52c 45%,#8a6510)', premium:true, shell:()=>mat('#d4a52c',{roughness:0.18, metalness:0.95}), accent:()=>mat('#1b1c22',{roughness:0.3, metalness:0.6})},
+  flames: {swatch:'linear-gradient(0deg,#ff3b1a,#ffb21a 45%,#14161b 46%)', premium:true,
+           shell:()=>texMat('flames',(g,w,h)=>{ g.fillStyle='#14161b'; g.fillRect(0,0,w,h);
+             for(const [c,sc,wd] of [['#ff3b1a',1,30],['#ff8a1a',0.8,24],['#ffd34d',0.55,16]]){ g.fillStyle=c;
+               for(let x=-8;x<w+8;x+=22){ const tip=h*(1-sc*rand(0.8,0.98)); g.beginPath(); g.moveTo(x-wd/2,h); g.quadraticCurveTo(x+wd*0.4,h*0.55,x-wd*0.1,tip); g.quadraticCurveTo(x+wd*0.5,h*0.6,x+wd/2,h); g.fill(); } } }, {roughness:0.3, metalness:0.3}),
+           accent:()=>mat('#ff7a1a',{emissive:'#ff5a1a', emissiveIntensity:0.9})},
+  galaxy: {swatch:'radial-gradient(circle at 30% 35%,#b57bff,transparent 40%),radial-gradient(circle at 75% 70%,#3dd6ff,transparent 35%),#16102e', premium:true,
+           shell:()=>texMat('galaxy',(g,w,h)=>{ g.fillStyle='#16102e'; g.fillRect(0,0,w,h);
+             for(const [c,x,y,r] of [['rgba(181,123,255,.55)',40,50,46],['rgba(61,214,255,.4)',95,85,40],['rgba(255,90,180,.3)',70,20,30]]){ const gr=g.createRadialGradient(x,y,0,x,y,r); gr.addColorStop(0,c); gr.addColorStop(1,'rgba(0,0,0,0)'); g.fillStyle=gr; g.fillRect(0,0,w,h); }
+             for(let i=0;i<90;i++){ g.fillStyle=`rgba(255,255,255,${rand(0.4,1)})`; const r=Math.random()<0.1?1.6:0.8; g.fillRect(Math.random()*w,Math.random()*h,r,r); } }, {roughness:0.3, metalness:0.4}, 0.45),
+           accent:()=>mat('#b57bff',{emissive:'#8a4dff', emissiveIntensity:0.6})},
+};
+let skinId = 'stock';
+try{ skinId = localStorage.getItem('rc-rampage-skin') || 'stock'; }catch(e){}
+if(!RULES.SKIN_IDS.includes(skinId)) skinId = 'stock';
+
+function buildTruck(id, lite=false, skin='stock'){
   const def = TRUCKS.find(t=>t.id===id) || TRUCKS[0];
+  const look = SKIN_LOOK[skin];
   const rig = new THREE.Group(), body = new THREE.Group(); rig.add(body);
-  const shellM = id==='howler' ? mat(def.shell,{roughness:0.85, metalness:0.05}) : mat(def.shell,{roughness:0.35, metalness:0.25});
-  const accM = id==='howler' ? mat(def.accent,{emissive:def.accent, emissiveIntensity:1.2})
+  let shellM = id==='howler' ? mat(def.shell,{roughness:0.85, metalness:0.05}) : mat(def.shell,{roughness:0.35, metalness:0.25});
+  let accM = id==='howler' ? mat(def.accent,{emissive:def.accent, emissiveIntensity:1.2})
              : id==='bulldog' ? chromeMat : mat(def.accent,{roughness:0.4});
+  if(look){ shellM = look.shell(); accM = look.accent(); }
   const b = (w,h,d,m,x,y,z,p=body)=>{ const o=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m); o.position.set(x,y,z); o.castShadow=true; p.add(o); return o; };
   b(0.52,0.07,0.95,darkMat,0,0.3,0,rig);                 // chassis
   let antY = 0.6, antZ = 0.46;
@@ -187,7 +224,8 @@ if(!TRUCKS.some(t=>t.id===truckId)) truckId = null;
 const rigCache = {};
 function setTruckModel(id){
   if(rigNow) truck.remove(rigNow.rig);
-  rigNow = rigCache[id] || (rigCache[id] = buildTruck(id));
+  const key = id + ':' + skinId;
+  rigNow = rigCache[key] || (rigCache[key] = buildTruck(id, false, skinId));
   truck.add(rigNow.rig);
   tBody = rigNow.body; tWheels = rigNow.wheels; antenna = rigNow.antenna;
 }
@@ -1878,18 +1916,35 @@ const ttRing = new THREE.Mesh(new THREE.TorusGeometry(1.06,0.015,6,64), new THRE
 ttRing.rotation.x = Math.PI/2; ttRing.position.y = 0.002; pScene.add(ttRing);
 const pCam = new THREE.PerspectiveCamera(30, 2, 0.1, 50);
 pCam.position.set(2.3,1.25,3.0); pCam.lookAt(0.25,0.34,0);
+// preview rigs, built on demand per truck + paint job
 const pRigs = {};
-TRUCKS.forEach(t=>{ const r = buildTruck(t.id); r.rig.visible = false; r.rig.traverse(m=>{ if(m.isMesh){ m.castShadow = true; } }); pScene.add(r.rig); pRigs[t.id] = r; });
-
-const thumbs = {};
-pRenderer.setSize(320,240,false); pCam.aspect = 320/240; pCam.updateProjectionMatrix();
-TRUCKS.forEach(t=>{
-  TRUCKS.forEach(o=>pRigs[o.id].rig.visible = o.id===t.id);
-  pRigs[t.id].rig.rotation.y = Math.PI*0.78;
-  ttRing.material.color.set(UI_COLOR[t.id]);
+let pShown = null;
+function previewRig(t, sk){
+  const key = t + ':' + sk;
+  if(!pRigs[key]){ const r = buildTruck(t, false, sk); r.rig.visible = false; r.rig.traverse(m=>{ if(m.isMesh){ m.castShadow = true; } }); pScene.add(r.rig); pRigs[key] = r; }
+  return pRigs[key];
+}
+function showPreview(t, sk){
+  const r = previewRig(t, sk);
+  if(pShown && pShown !== r) pShown.rig.visible = false;
+  pShown = r; r.rig.visible = true;
+  ttRing.material.color.set(UI_COLOR[t]);
+}
+const thumbCache = {};
+function thumbFor(t, sk='stock'){
+  const key = t + ':' + sk;
+  if(thumbCache[key] !== undefined) return thumbCache[key];
+  const prev = pShown, w = pCv.width, h = pCv.height, aspect = pCam.aspect;
+  pRenderer.setSize(320,240,false); pCam.aspect = 320/240; pCam.updateProjectionMatrix();
+  showPreview(t, sk); pShown.rig.rotation.y = Math.PI*0.78;
   pRenderer.render(pScene, pCam);
-  try{ thumbs[t.id] = pCv.toDataURL('image/png'); }catch(e){ thumbs[t.id] = ''; }
-});
+  try{ thumbCache[key] = pCv.toDataURL('image/png'); }catch(e){ thumbCache[key] = ''; }
+  pRenderer.setSize(w, h, false); pCam.aspect = aspect; pCam.updateProjectionMatrix();
+  if(prev){ pShown.rig.visible = false; pShown = prev; prev.rig.visible = true; }
+  return thumbCache[key];
+}
+const thumbs = {};
+TRUCKS.forEach(t=>{ thumbs[t.id] = thumbFor(t.id); });
 
 let gSel = truckId || 'blaze', gMode = 'start', gAngle = Math.PI*0.78;
 const cardEls = {};
@@ -1927,11 +1982,11 @@ function refreshGarageButton(){
 function gSelect(id, quiet){
   gSel = id;
   const t = TRUCKS.find(x=>x.id===id);
-  TRUCKS.forEach(o=>{ const on = o.id===id; cardEls[o.id].setAttribute('aria-checked', String(on)); cardEls[o.id].tabIndex = on ? 0 : -1; pRigs[o.id].rig.visible = on; });
+  TRUCKS.forEach(o=>{ const on = o.id===id; cardEls[o.id].setAttribute('aria-checked', String(on)); cardEls[o.id].tabIndex = on ? 0 : -1; });
+  showPreview(id, skinId);
   $('gName').textContent = t.name; $('gTag').textContent = t.tag; $('gDesc').textContent = t.desc;
   $('gPerk').textContent = 'Perk · ' + TRUCK_PERK[id];
   $('gName').style.setProperty('--gc', UI_COLOR[id]);
-  ttRing.material.color.set(UI_COLOR[id]);
   refreshGarageButton();
   if(!quiet) sfx.select();
 }
@@ -1968,11 +2023,108 @@ function renderUpgrades(){
     li.append(dot, info, btn); ul.append(li);
   }
 }
+// ---------- paint shop ----------
+let ownedSkins = SAVE.load('skins', ['stock']); if(!Array.isArray(ownedSkins)) ownedSkins = ['stock'];
+ownedSkins = ownedSkins.filter(x=>RULES.SKIN_IDS.includes(x)); if(!ownedSkins.includes('stock')) ownedSkins.unshift('stock');
+if(!ownedSkins.includes(skinId)) skinId = 'stock';
+const ownsSkin = id => id==='stock' || ownedSkins.includes(id);
+let sSel = skinId;
+const skinEls = {};
+for(const sk of RULES.SKINS){
+  const bt = document.createElement('button');
+  bt.type = 'button'; bt.className = 'card'; bt.setAttribute('role','radio'); bt.style.setProperty('--gc', '#ffc21a');
+  const sw = document.createElement('i'); sw.className = 'swatch';
+  const nm = document.createElement('b'); nm.textContent = sk.name;
+  const pr = document.createElement('span'); pr.className = 'price';
+  bt.append(sw, nm, pr);
+  if(sk.cents){ const pb = document.createElement('span'); pb.className = 'prem'; pb.textContent = 'PREMIUM'; bt.append(pb); }
+  bt.addEventListener('click', ()=>sSelect(sk.id));
+  $('skinCards').append(bt); skinEls[sk.id] = bt;
+}
+function refreshSkins(){
+  const def = TRUCKS.find(t=>t.id===gSel) || TRUCKS[0];
+  for(const sk of RULES.SKINS){
+    const el = skinEls[sk.id], own = ownsSkin(sk.id);
+    el.querySelector('.swatch').style.background = sk.id==='stock' ? `linear-gradient(135deg,${def.shell} 60%,${def.accent} 60%)` : SKIN_LOOK[sk.id].swatch;
+    el.classList.toggle('locked', !own);
+    const pr = el.querySelector('.price'); pr.textContent = ''; pr.style.color = '';
+    if(own){ pr.textContent = sk.id===skinId ? 'Equipped' : 'Owned'; pr.style.color = 'var(--muted)'; }
+    else if(sk.coins){ const ci=document.createElement('span'); ci.className='coinico'; pr.append(ci, document.createTextNode(sk.coins)); }
+    else pr.textContent = RULES.formatPrice(sk.cents);
+    el.setAttribute('aria-checked', String(sk.id===sSel)); el.tabIndex = sk.id===sSel ? 0 : -1;
+    el.setAttribute('aria-label', `${sk.name}, ${own ? 'owned' : sk.coins ? sk.coins+' coins' : RULES.formatPrice(sk.cents)}`);
+  }
+  const sk = RULES.SKINS.find(x=>x.id===sSel), ok = $('sOk'), note = $('sNote');
+  ok.disabled = false; note.textContent = '';
+  if(ownsSkin(sSel)){ ok.textContent = sSel===skinId ? 'Equipped' : 'Use this paint'; ok.disabled = sSel===skinId; }
+  else if(sk.coins){ ok.textContent = `Buy for ${sk.coins}`; if(bank < sk.coins){ ok.disabled = true; note.textContent = `${(sk.coins-bank).toLocaleString('en')} more coins needed`; } }
+  else if(!ON.enabled){ ok.textContent = 'Not available yet'; ok.disabled = true; }
+  else if(!ON.user){ ok.textContent = 'Sign in to buy'; }
+  else ok.textContent = `Buy for ${RULES.formatPrice(sk.cents)}`;
+  $('gName').textContent = sk.name; $('gTag').textContent = (TRUCKS.find(t=>t.id===gSel)||TRUCKS[0]).name;
+}
+function sSelect(id, quiet){
+  sSel = id; showPreview(gSel, id); refreshSkins();
+  if(!quiet) sfx.select();
+}
+function equipSkin(id){
+  skinId = id; sSel = id;
+  if(!signedIn) try{ localStorage.setItem('rc-rampage-skin', id); }catch(e){}
+  setTruckModel(truckId || 'blaze'); updateMyTruck(); refreshSkins();
+}
+function confirmSkin(){
+  const sk = RULES.SKINS.find(x=>x.id===sSel), ok = $('sOk'), note = $('sNote');
+  if(ownsSkin(sSel)){
+    if(sSel===skinId) return;
+    sfx.confirm();
+    if(signedIn){ const id = sSel; ok.disabled = true; ON.setSkin(id).then(()=>refreshSkins()).catch(e=>{ note.textContent = ON.message(e.code); refreshSkins(); }); equipSkin(id); }
+    else equipSkin(sSel);
+    return;
+  }
+  if(sk.coins){
+    if(bank < sk.coins) return;
+    if(signedIn){ buyOnline('skin:'+sk.id, ok, note, ()=>{ sfx.unlock(); refreshSkins(); }); return; }
+    addBank(-sk.coins); ownedSkins.push(sk.id); SAVE.save('skins', ownedSkins);
+    sfx.unlock(); refreshSkins(); return;
+  }
+  if(!ON.user){ ON.openAccount(); return; }
+  payWithStripe('skin:'+sk.id, ok, note);
+}
+function payWithStripe(item, btn, note){
+  btn.disabled = true; btn.setAttribute('aria-busy','true'); note.textContent = 'Opening secure checkout…';
+  ON.checkout(item).catch(e=>{ btn.disabled = false; btn.removeAttribute('aria-busy'); note.textContent = ON.message(e.code); });
+}
+
+// ---------- coin packs ----------
+function renderPacks(){
+  const ul = $('packList'); ul.textContent = '';
+  const can = ON.enabled && !!ON.user;
+  RULES.COIN_PACKS.forEach((pk, i)=>{
+    const li = document.createElement('li');
+    const amt = document.createElement('span'); amt.className = 'amt';
+    const ci = document.createElement('span'); ci.className = 'coinico'; ci.setAttribute('aria-hidden','true');
+    amt.append(ci, document.createTextNode(pk.coins.toLocaleString('en')));
+    const sm = document.createElement('small'); sm.textContent = i===1 ? 'Popular' : i===2 ? 'Best value' : '';
+    const btn = document.createElement('button'); btn.type = 'button'; btn.className = 'btn'; btn.textContent = RULES.formatPrice(pk.cents);
+    btn.disabled = !can; btn.setAttribute('aria-label', `Buy ${pk.coins} coins for ${RULES.formatPrice(pk.cents)}`);
+    btn.addEventListener('click', ()=>payWithStripe(pk.id, btn, $('cNote')));
+    li.append(amt, sm, btn); ul.append(li);
+  });
+  $('cSignIn').hidden = !ON.enabled || !!ON.user;
+  $('cNote').textContent = !ON.enabled ? 'Coin packs aren’t available yet.' : !ON.user ? 'Sign in so the coins are saved to your account.' : '';
+}
+
+const TABS = ['trucks','skins','upgrades','coins'];
+const TAB_IDS = {trucks:['tabTrucks','paneTrucks'], skins:['tabSkins','paneSkins'], upgrades:['tabUpgrades','paneUpgrades'], coins:['tabCoins','paneCoins']};
 function showTab(which){
-  const trucks = which==='trucks';
-  $('tabTrucks').setAttribute('aria-selected', String(trucks)); $('tabUpgrades').setAttribute('aria-selected', String(!trucks));
-  $('paneTrucks').hidden = !trucks; $('paneUpgrades').hidden = trucks;
-  if(trucks) sizePreview(); else renderUpgrades();
+  for(const t of TABS){ $(TAB_IDS[t][0]).setAttribute('aria-selected', String(t===which)); $(TAB_IDS[t][1]).hidden = t!==which; }
+  // one 3D preview, moved to whichever tab shows it
+  const box = $('previewBox');
+  if(which==='skins'){ $('previewSlot').append(box); sSel = skinId; sSelect(skinId, true); }
+  else if(which==='trucks'){ $('paneTrucks').prepend(box); gSelect(gSel, true); }
+  if(which==='trucks' || which==='skins') sizePreview();
+  if(which==='upgrades') renderUpgrades();
+  if(which==='coins') renderPacks();
 }
 function sizePreview(){
   const w = pCv.clientWidth || 600, h = pCv.clientHeight || 300;
@@ -2011,15 +2163,15 @@ function confirmGarage(){
 function updateMyTruck(){
   const has = !!truckId;
   $('myTruck').hidden = !has;
-  if(has){ const t = TRUCKS.find(x=>x.id===truckId); $('myTruckName').textContent = t.name; $('myTruckImg').src = thumbs[t.id]; }
+  if(has){ const t = TRUCKS.find(x=>x.id===truckId); $('myTruckName').textContent = t.name; $('myTruckImg').src = thumbFor(t.id, skinId); }
   updateWallets(); renderMissions($('mListMenu'));
 }
 function requestStart(){ if(truckId) startGame(); else { initAudio(); openGarage('start'); } }
 function cycleTruck(dir){ const i = TRUCKS.findIndex(t=>t.id===gSel); const n = TRUCKS[(i+dir+TRUCKS.length)%TRUCKS.length].id; gSelect(n); cardEls[n].focus({preventScroll:true}); }
 function renderGarage(dt){
-  if(garageEl.hidden || $('paneTrucks').hidden) return;
+  if(garageEl.hidden || ($('paneTrucks').hidden && $('paneSkins').hidden) || !pShown) return;
   gAngle += dt*0.7;
-  const r = pRigs[gSel]; r.rig.rotation.y = gAngle;
+  const r = pShown; r.rig.rotation.y = gAngle;
   r.antenna.rotation.z = Math.sin(gAngle*3)*0.08;
   pRenderer.render(pScene, pCam);
 }
@@ -2029,6 +2181,12 @@ $('gBack').addEventListener('click', closeGarage);
 $('gBack2').addEventListener('click', closeGarage);
 $('tabTrucks').addEventListener('click', ()=>showTab('trucks'));
 $('tabUpgrades').addEventListener('click', ()=>showTab('upgrades'));
+$('tabSkins').addEventListener('click', ()=>showTab('skins'));
+$('tabCoins').addEventListener('click', ()=>showTab('coins'));
+$('sOk').addEventListener('click', confirmSkin);
+$('sBack').addEventListener('click', closeGarage);
+$('cBack').addEventListener('click', closeGarage);
+$('cSignIn').addEventListener('click', ()=>{ garageEl.hidden = true; $(gMode==='over' ? 'over' : 'menu').hidden = false; ON.openAccount(); });
 $('changeBtn').addEventListener('click', ()=>openGarage('menu'));
 $('overChangeBtn').addEventListener('click', ()=>openGarage('over'));
 // ---------- online: when signed in, the server owns coins, trucks, upgrades, missions and best ----------
@@ -2050,7 +2208,11 @@ function applyServerState(st){
   bank = st.coins; owned = st.trucks.slice(); Object.assign(upgrades, st.upgrades);
   missions = st.missions; missionsDone = st.missionsDone; foundDeaths = new Set(st.crashes);
   best = st.best;
-  if(state!=='playing' && owned.includes(st.truck) && st.truck !== truckId){ truckId = st.truck; setTruckModel(truckId); }
+  ownedSkins = Array.isArray(st.skins) ? st.skins.slice() : ['stock'];
+  let model = false;
+  if(state!=='playing' && owned.includes(st.truck) && st.truck !== truckId){ truckId = st.truck; model = true; }
+  if(state!=='playing' && st.skin && st.skin !== skinId){ skinId = st.skin; model = true; }
+  if(model) setTruckModel(truckId || 'blaze');
   refreshProgressUI();
 }
 function loadGuestState(){
@@ -2062,7 +2224,9 @@ function loadGuestState(){
   try{ foundDeaths = new Set(JSON.parse(localStorage.getItem('rc-rampage-crashes')||'[]')); }catch(e){ foundDeaths = new Set(); }
   try{ best = parseInt(localStorage.getItem('rc-rampage-best')||'0',10)||0; }catch(e){ best = 0; }
   let t = null; try{ t = localStorage.getItem('rc-rampage-truck'); }catch(e){}
-  if(state!=='playing'){ truckId = t && owned.includes(t) ? t : (t ? 'blaze' : null); if(truckId) setTruckModel(truckId); }
+  ownedSkins = SAVE.load('skins', ['stock']); if(!Array.isArray(ownedSkins)) ownedSkins = ['stock'];
+  let sk = 'stock'; try{ sk = localStorage.getItem('rc-rampage-skin') || 'stock'; }catch(e){}
+  if(state!=='playing'){ skinId = ownsSkin(sk) ? sk : 'stock'; truckId = t && owned.includes(t) ? t : (t ? 'blaze' : null); setTruckModel(truckId || 'blaze'); }
   if(state!=='playing') fillMissions();
   refreshProgressUI();
 }
@@ -2070,7 +2234,9 @@ function refreshProgressUI(){
   $('bestMenu').textContent = best; $('bestOver').textContent = best;
   updateMyTruck();
   if(!$('over').hidden) renderMissions($('mListOver'));
-  if(!garageEl.hidden){ refreshCards(); refreshGarageButton(); if(!$('paneUpgrades').hidden) renderUpgrades(); }
+  if(!garageEl.hidden){ refreshCards(); refreshGarageButton(); if(!$('paneUpgrades').hidden) renderUpgrades();
+    if(!$('paneSkins').hidden){ sSel = ownsSkin(sSel) || RULES.SKINS.find(x=>x.id===sSel) ? sSel : skinId; refreshSkins(); }
+    if(!$('paneCoins').hidden) renderPacks(); }
   const u = ON.user, name = ON.state?.name;
   $('accountBtn').textContent = u ? 'Account' : 'Sign in';
   const who = $('whoami'); who.textContent = '';
@@ -2080,6 +2246,7 @@ function refreshProgressUI(){
 ON.guestSnapshot = () => ({
   coins: SAVE.load('bank', 0) | 0,
   trucks: (SAVE.load('owned', ['blaze']) || []).filter(t=>RULES.TRUCK_IDS.includes(t)),
+  skins: (SAVE.load('skins', []) || []).filter(x=>RULES.SKINS.some(k=>k.id===x && k.coins)),
   upgrades: Object.fromEntries(RULES.POWER_IDS.map(p=>[p, Math.max(0, Math.min(UPG_MAX, (SAVE.load('upgrades', {})||{})[p]|0))])),
   missions: SAVE.load('missions', []).filter(RULES.validMission).slice(0,3),
   missionsDone: SAVE.load('missions-done', 0) | 0,
@@ -2104,6 +2271,10 @@ window.addEventListener('keydown', e=>{
   if(e.target instanceof HTMLInputElement) return;
   if(!garageEl.hidden){
     const onTrucks = !$('paneTrucks').hidden;
+    if(!$('paneSkins').hidden && (k==='ArrowLeft' || k==='ArrowRight')){
+      const ids = RULES.SKIN_IDS, i = ids.indexOf(sSel), n = ids[(i + (k==='ArrowRight'?1:-1) + ids.length) % ids.length];
+      sSelect(n); skinEls[n].focus({preventScroll:true}); e.preventDefault(); return;
+    }
     if(onTrucks && (k==='ArrowLeft' || k==='ArrowUp')){ cycleTruck(-1); e.preventDefault(); }
     else if(onTrucks && (k==='ArrowRight' || k==='ArrowDown')){ cycleTruck(1); e.preventDefault(); }
     else if(k==='Escape'){ closeGarage(); }

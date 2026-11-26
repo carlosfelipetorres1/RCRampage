@@ -5,9 +5,16 @@
 //   deno run --allow-net --allow-env --allow-read supabase/tests/local-server.ts
 //
 // Fake auth: POST /auth/otp {email} creates (or finds) the user and returns {id}; the "access token"
-// is then `test:<id>`. Never deploy this file.
+// is then `test:<id>`. Fake Stripe: checkout sessions are recorded at /stripe/v1/, and
+// POST /test/pay/<session id> (or /test/refund/<session id>) sends a correctly signed webhook.
+// Never deploy this file.
+import { signForTests } from '../functions/_shared/stripe.ts';
 import postgres from 'npm:postgres@3.4.5';
 
+Deno.env.set('STRIPE_SECRET_KEY', 'sk_test_local');
+Deno.env.set('STRIPE_WEBHOOK_SECRET', 'whsec_local');
+Deno.env.set('STRIPE_API_BASE', `http://127.0.0.1:${Deno.env.get('PORT') ?? 8790}/stripe/v1/`);
+const sessions = new Map<string, Record<string, string>>();
 const sql = postgres(Deno.env.get('DATABASE_URL') ?? 'postgres://postgres@127.0.0.1:55432/rc', { max: 4, onnotice: () => {} });
 const PORT = Number(Deno.env.get('PORT') ?? 8790);
 const ORIGIN = 'http://localhost:8777';
@@ -58,7 +65,7 @@ const fakeAdmin = {
 const handlers = new Map<string, (req: Request) => Promise<Response>>();
 // deno-lint-ignore no-explicit-any
 (globalThis as any).__rcTest = { admin: fakeAdmin, register: (name: string, h: (req: Request) => Promise<Response>) => handlers.set(name, h) };
-for (const fn of ['profile', 'run-start', 'run-finish', 'shop-buy', 'import-guest', 'delete-account']) {
+for (const fn of ['profile', 'run-start', 'run-finish', 'shop-buy', 'import-guest', 'delete-account', 'checkout', 'stripe-webhook']) {
   await import(`../functions/${fn}/index.ts`);
 }
 
@@ -70,6 +77,28 @@ Deno.serve({ port: PORT, hostname: '127.0.0.1' }, async (req) => {
   const fn = path.match(/^\/functions\/v1\/([a-z-]+)$/)?.[1];
   if (fn) return handlers.has(fn) ? handlers.get(fn)!(req) : json({ error: 'no_function' }, 404);
   if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors });
+  if (path === '/stripe/v1/checkout/sessions') {
+    if (req.headers.get('Authorization') !== 'Bearer sk_test_local') return json({ error: { message: 'bad key' } }, 401);
+    const form = Object.fromEntries(new URLSearchParams(await req.text()));
+    const id = 'cs_test_' + crypto.randomUUID().replaceAll('-', '');
+    sessions.set(id, form);
+    return json({ id, url: `https://checkout.stripe.com/c/pay/${id}` });
+  }
+  const pay = path.match(/^\/test\/(pay|refund)\/(cs_test_\w+)$/);
+  if (pay) {
+    const form = sessions.get(pay[2]);
+    if (!form) return json({ error: 'no_session' }, 404);
+    const event = pay[1] === 'pay'
+      ? { type: 'checkout.session.completed', data: { object: {
+          id: pay[2], payment_status: 'paid', client_reference_id: form.client_reference_id,
+          metadata: { uid: form['metadata[uid]'], item: form['metadata[item]'] }, payment_intent: 'pi_' + pay[2],
+          amount_total: Number(form['line_items[0][price_data][unit_amount]']), currency: form['line_items[0][price_data][currency]'] } } }
+      : { type: 'charge.refunded', data: { object: { payment_intent: 'pi_' + pay[2] } } };
+    const body = JSON.stringify(event);
+    const res = await handlers.get('stripe-webhook')!(new Request('http://x/functions/v1/stripe-webhook', {
+      method: 'POST', body, headers: { 'Stripe-Signature': await signForTests(body, 'whsec_local') } }));
+    return json({ status: res.status, body: await res.json(), sent: form });
+  }
   if (path === '/auth/otp') {
     const { email } = await req.json();
     const [u] = await sql`insert into auth.users (email) values (${email})
