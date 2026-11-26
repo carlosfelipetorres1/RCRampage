@@ -7,8 +7,8 @@
 // Public values only. The publishable/anon key is safe in the page: the database grants it nothing
 // except get_leaderboard(). Leave SUPABASE_URL empty to run the game fully offline.
 const CONFIG = {
-  SUPABASE_URL: '',
-  SUPABASE_KEY: '',
+  SUPABASE_URL: 'https://mreqfxafulpslzkelshy.supabase.co',
+  SUPABASE_KEY: 'sb_publishable_saXP8VSd4RhAnZ1vLkWmLA_9By1u9N6',
   TURNSTILE_SITE_KEY: '',
 };
 
@@ -72,6 +72,7 @@ async function onSignedIn(u){
     setState(res.state);
     flushPending();
     if(!res.state.name) openAccount('name');
+    else if(!$('account').hidden && (!$('acCode').hidden || !$('acEmail').hidden)) openAccount();   // signed in from the email link
   }catch(e){
     if(e.code === 'not_signed_in'){ await sb.auth.signOut(); return; }
     console.warn('profile', e.code);
@@ -80,7 +81,7 @@ async function onSignedIn(u){
 function init(){
   if(!enabled) return;
   sb = window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_KEY, {
-    auth: {persistSession:true, autoRefreshToken:true, detectSessionInUrl:false, storageKey:'rc-rampage-auth'},
+    auth: {persistSession:true, autoRefreshToken:true, detectSessionInUrl:true, storageKey:'rc-rampage-auth'},
   });
   sb.auth.onAuthStateChange((ev, session) => {
     const u = session?.user || null;
@@ -189,7 +190,7 @@ async function sendCode(){
   if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ say('Enter a valid email address.'); return; }
   if(CONFIG.TURNSTILE_SITE_KEY && !tsToken){ say('Wait for the robot check to finish, then try again.'); return; }
   const btn = $('acSend'); busy(btn, true);
-  const { error } = await sb.auth.signInWithOtp({email, options:{shouldCreateUser:true, captchaToken: tsToken || undefined}});
+  const { error } = await sb.auth.signInWithOtp({email, options:{shouldCreateUser:true, captchaToken: tsToken || undefined, emailRedirectTo: location.origin + location.pathname}});
   busy(btn, false);
   if(tsWidget && tsWidget !== 'loading'){ window.turnstile.reset(tsWidget); tsToken = ''; }
   if(error){ say(error.status === 429 ? MESSAGES.slow_down : 'Couldn’t send the code. Check the address and try again.'); return; }

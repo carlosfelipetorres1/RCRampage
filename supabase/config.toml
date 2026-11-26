@@ -1,5 +1,5 @@
 # Supabase project settings for RC Rampage. Push with `supabase config push` after `supabase link`.
-project_id = "rc-rampage"
+project_id = "mreqfxafulpslzkelshy"
 
 [api]
 # Only `public` is reachable through the Data API. Game tables live in `game` and are never exposed;
@@ -10,7 +10,7 @@ max_rows = 100
 
 [auth]
 site_url = "https://carlosfelipetorres1.github.io/RCRampage/"
-additional_redirect_urls = ["http://localhost:8777"]
+additional_redirect_urls = ["http://localhost:8777/**", "https://carlosfelipetorres1.github.io/RCRampage/**"]
 jwt_expiry = 3600
 enable_refresh_token_rotation = true
 refresh_token_reuse_interval = 10
@@ -23,27 +23,29 @@ token_verifications = 30
 sign_in_sign_ups = 30
 
 [auth.email]
-enable_signup = true
+enabled = true
 double_confirm_changes = true
 enable_confirmations = false
 otp_length = 6
 otp_expiry = 600
 max_frequency = "60s"
 
-# Both templates carry the 6-digit code ({{ .Token }}) instead of a link: new players get
-# "confirmation", returning players get "magic_link".
-[auth.email.template.confirmation]
-subject = "Your RC Rampage sign-in code"
-content_path = "./supabase/templates/code.html"
+# Code-only emails need custom SMTP (Supabase's free built-in mailer can't use custom templates).
+# Until then the default emails carry a sign-in link, which the game also accepts. After setting up
+# SMTP, uncomment these so the email shows the 6-digit code ({{ .Token }}).
+# New players get "confirmation", returning players get "magic_link".
+# [auth.email.template.confirmation]
+# subject = "Your RC Rampage sign-in code"
+# content_path = "./supabase/templates/code.html"
 
-[auth.email.template.magic_link]
-subject = "Your RC Rampage sign-in code"
-content_path = "./supabase/templates/code.html"
+# [auth.email.template.magic_link]
+# subject = "Your RC Rampage sign-in code"
+# content_path = "./supabase/templates/code.html"
 
-# Cloudflare Turnstile on sign-in code requests (stops email bombing). The secret is read from the
-# environment when pushing config: TURNSTILE_SECRET=... supabase config push
+# Cloudflare Turnstile on sign-in code requests (stops email bombing). Off until a Turnstile site exists:
+# then set enabled = true, put the site key in online.js and push with TURNSTILE_SECRET=... supabase config push
 [auth.captcha]
-enabled = true
+enabled = false
 provider = "turnstile"
 secret = "env(TURNSTILE_SECRET)"
 

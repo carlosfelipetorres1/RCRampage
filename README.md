@@ -14,7 +14,7 @@ A 3D endless runner in the browser. Drive a remote-control monster truck through
 - Air tricks: barrel roll and backflip, but land them or you crash
 - Day/night cycle, rain, and random events: train crossings to jump and police roadblocks
 - 10 random crash styles (Flipped, Shattered, Sent to orbit, Ball pit, Pancaked, Wheels off, Kaboom, Pixelated, Ghosted, Popped), with a counter of the ones you've found
-- Optional account (email code, no password) that saves coins, trucks, upgrades and missions online, and a verified global leaderboard (all time and this week)
+- Optional account (passwordless email sign-in) that saves coins, trucks, upgrades and missions online, and a verified global leaderboard (all time and this week)
 - Sampled engine sound, sound effects for jumps, crashes and every power, and a music track for each scenery
 
 ## Controls
@@ -56,7 +56,7 @@ A browser game can't be made fully cheat-proof: someone who studies the checks c
 3. `supabase db push`. This applies `supabase/migrations/`.
 4. `supabase functions deploy`.
 5. `TURNSTILE_SECRET=… supabase config push`, and put the Turnstile site key in `online.js`.
-6. For more than a handful of sign-ups an hour, set up custom SMTP (for example Resend) in the dashboard.
+6. For more than a handful of sign-ups an hour, set up custom SMTP (for example Resend) in the dashboard. Until then, Supabase's built-in mailer can't use custom templates, so sign-in emails carry a link (the game accepts it). With SMTP set up, uncomment the templates in `supabase/config.toml` and push again, so emails show a 6-digit code instead.
 
 ### Tests
 - **Database security and logic:**

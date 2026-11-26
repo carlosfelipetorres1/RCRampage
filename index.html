@@ -363,7 +363,7 @@ kbd{font-family:var(--f-ui);font-weight:700;font-size:11px;background:var(--plas
     <div class="eyebrow">Driver account</div>
     <div id="acEmail" hidden>
       <h2>Sign in</h2>
-      <p>Save your coins and trucks online and get on the leaderboard. No password: we email you a 6-digit code.</p>
+      <p>Save your coins and trucks online and get on the leaderboard. No password: we email you a sign-in link.</p>
       <div class="field"><label for="acEmailIn">Email</label><input id="acEmailIn" type="email" autocomplete="email" inputmode="email" maxlength="254" spellcheck="false"></div>
       <div class="ts" id="tsBox"></div>
       <div class="row"><button class="btn" id="acSend" type="button">Email me a code</button><button class="btn ghost" id="acBack" type="button">Back</button></div>
@@ -371,7 +371,7 @@ kbd{font-family:var(--f-ui);font-weight:700;font-size:11px;background:var(--plas
     </div>
     <div id="acCode" hidden>
       <h2>Check your email</h2>
-      <p>We sent a 6-digit code to <b id="acSentTo"></b>. It expires in 10 minutes.</p>
+      <p>We sent an email to <b id="acSentTo"></b>. Tap the sign-in link in it, or type the 6-digit code if the email has one. It expires in 10 minutes.</p>
       <div class="field"><label for="acCodeIn">Code</label><input id="acCodeIn" class="code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]*"></div>
       <div class="row"><button class="btn" id="acVerify" type="button">Sign in</button><button class="btn ghost" id="acBack2" type="button">Back</button></div>
       <p class="fine"><button class="linkbtn" id="acResend" type="button">Use a different email or send a new code</button></p>
