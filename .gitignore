@@ -1,2 +1,7 @@
 .claude/
 .DS_Store
+
+# Supabase local state and secrets
+supabase/.temp/
+supabase/.env*
+.env*
